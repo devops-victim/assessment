@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A live BSE trade blotter with durable background imports.">
+  <title>Tradeflow · Trades dashboard</title>
+  <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/assessment.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Tradeflow home"><img src="/favicon.svg" alt=""><span>tradeflow<span class="brand-dot">.</span></span></a>
+    <div class="workspace"><span class="workspace-icon">A</span><div><strong>Arham workspace</strong><small>Exchange operations</small></div><span class="chevron">⌄</span></div>
+    <div class="nav-label">WORKSPACE</div>
+    <nav aria-label="Main navigation"><a href="/" class="nav-active"><span class="nav-icon">▤</span>Trades dashboard<span class="nav-arrow">↗</span></a><a href="#activity"><span class="nav-icon">◷</span>Pull activity</a><a href="#pipeline"><span class="nav-icon">⇄</span>Data pipeline</a></nav>
+    <div class="sidebar-bottom"><div class="exchange-note"><span class="green-dot"></span> BSE Exchange<div>Mock environment</div></div><div class="profile"><span class="avatar">AO</span><div><strong>Arham Operations</strong><small>Assessment workspace</small></div></div></div>
+  </aside>
+  <div class="shell">
+    <header class="topbar"><span>Workspace <span class="slash">/</span> <strong>Trades dashboard</strong></span><div class="header-right"><span class="environment">SANDBOX</span><span id="today"></span></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">EXCHANGE OPERATIONS</div><h1>Trades dashboard<span class="title-dot">.</span></h1><p>Your exchange trades. Always in sync.</p></div><div class="heading-actions"><div class="connection" id="connection"><span class="green-dot"></span><span id="connection-label">Connecting…</span></div><button class="primary" id="pull-button"><span aria-hidden="true">↻</span><span id="pull-button-label">Pull latest trades</span></button></div></div>
+      <div class="error-banner" id="error" role="alert" hidden></div>
+      <section class="pull-banner" aria-label="Pull status"><span class="banner-icon" id="banner-icon">✓</span><div class="banner-copy"><strong id="pull-title">Loading saved trades</strong><span id="pull-description">Connecting to your trade store…</span></div><div class="banner-meta"><span class="status-pill" id="pull-pill">READY</span><span id="pull-clock">On-demand sync</span></div><div class="pull-progress" id="progress"></div></section>
+      <section class="assessment-card" aria-labelledby="assessment-title">
+        <div class="assessment-heading"><div><h2 id="assessment-title">Assessment constraints — enforced</h2><p>A long-running exchange pull must survive a network that kills open connections.</p></div><span class="environment">REAL DURATION</span></div>
+        <div class="timing-grid"><div><span>Full exchange pull duration</span><strong id="configured-duration">15:00</strong><small id="batch-cadence">100 trades arrive every 45 seconds</small></div><div><span>Hard network timeout</span><strong id="network-limit">30 seconds</strong><small>The server actually destroys the socket</small></div><div><span>Live connection</span><strong id="live-clock">Connecting…</strong><small id="live-renewals">Renews at 25 seconds to avoid the cutoff</small></div></div>
+        <div class="timeout-test"><div><strong>See why the synchronous request fails</strong><p id="timeout-result" role="status" aria-live="polite">This makes a real slow GET; the network will drop its connection at 30 seconds.</p></div><button id="timeout-button" class="secondary">Run 30-second timeout test</button></div>
+        <div id="network-event" class="network-event" role="status" hidden></div>
+      </section>
+      <section class="metrics" aria-label="Trade summary">
+        <article class="metric"><div class="metric-top">Total trades<span>▤</span></div><strong id="total-trades">—</strong><div><span class="metric-tag">BSE</span> <span id="total-caption">Saved exchange records</span></div></article>
+        <article class="metric"><div class="metric-top">Traded value<span>₹</span></div><strong id="traded-value">—</strong><div>Total quantity × execution price</div></article>
+        <article class="metric"><div class="metric-top">Active clients<span>♧</span></div><strong id="active-clients">—</strong><div>Across <span id="symbol-count">—</span> traded symbols</div></article>
+        <article class="metric"><div class="metric-top">Last successful pull<span>◷</span></div><strong class="time-value" id="last-pull">—</strong><div id="last-pull-caption">No pulls completed yet</div></article>
+      </section>
+      <div class="content-grid">
+        <section class="trades-card" aria-labelledby="trades-title">
+          <div class="card-heading"><div><h2 id="trades-title">Trade blotter <span class="count-badge" id="blotter-count">0</span></h2><p>All executions, in one place.</p></div><button class="secondary" id="export-button"><span aria-hidden="true">↓</span> Export CSV</button></div>
+          <div class="table-tools"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search trade ID, client or symbol…" aria-label="Search trades"></label><label class="symbol-filter"><span class="sr-only">Filter by symbol</span><select id="symbol-filter"><option value="">All symbols</option></select></label><span class="live-tag"><span class="green-dot"></span>Live updates</span></div>
+          <div class="table-wrap"><table><thead><tr><th scope="col">TRADE ID</th><th scope="col">CLIENT</th><th scope="col">SYMBOL</th><th scope="col" class="numeric">QTY</th><th scope="col" class="numeric">PRICE</th><th scope="col">TIME <span aria-hidden="true">↓</span></th></tr></thead><tbody id="trade-rows"></tbody></table><div id="empty-state" hidden>No trades match your filters.</div></div>
+          <div class="table-footer"><span id="page-info">Loading records…</span><div><button class="page-button" id="prev" aria-label="Previous page">←</button><span id="page-number">1</span><button class="page-button" id="next" aria-label="Next page">→</button></div></div>
+        </section>
+        <aside class="right-column">
+          <section class="activity-card" id="activity" aria-labelledby="activity-title"><div class="side-heading"><h2 id="activity-title">Pull activity</h2><span class="subtle-icon">◷</span></div><p class="side-description">Every sync, accounted for.</p><div id="activity-list"></div><div class="activity-foot"><span class="green-dot"></span>Updates arrive automatically</div></section>
+          <section class="pipeline-card" id="pipeline" aria-labelledby="pipeline-title"><div class="side-heading"><h2 id="pipeline-title">Built to keep moving</h2><span class="subtle-icon">↗</span></div><p>A long pull shouldn't slow down your workspace.</p><div class="pipeline-step"><span>01</span><div><strong>Request accepted</strong><small>Your pull starts in the background</small></div></div><div class="pipeline-step"><span>02</span><div><strong>Trades saved safely</strong><small>One atomic batch, no duplicates</small></div></div><div class="pipeline-step"><span>03</span><div><strong>Dashboard updated</strong><small>Server push to every open tab</small></div></div><div class="pipeline-note"><span>ϟ</span> No refresh. No data polling.</div></section>
+        </aside>
+      </div>
+      <footer class="page-footer"><span><span class="footer-logo">▥</span> TRADEFLOW <span class="footer-divider">/</span> BSE trade operations</span><span>Persistent storage <span class="footer-dot">·</span> Event-driven updates</span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

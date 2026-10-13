@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { chromium } from 'playwright';
+import { system } from '../test/helpers.js';
+import { ASSESSMENT_PULL_MS, NETWORK_CONNECTION_LIMIT_MS, LIVE_RENEWAL_MS } from '../src/timing.js';
+
+// This browser check also uses the full, real 15-minute assessment duration.
+const s = await system({ delayMs: ASSESSMENT_PULL_MS, connectionLimitMs: NETWORK_CONNECTION_LIMIT_MS, wsLifetimeMs: LIVE_RENEWAL_MS });
+let browser;
+try {
+  browser = await chromium.launch(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {});
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const errors = [], requests = [], sockets = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.url().includes('/api/')) requests.push(request.url()); });
+  page.on('websocket', socket => sockets.push(socket));
+  await page.goto(s.url);
+  await page.locator('#total-trades').filter({ hasText: /^0$/ }).waitFor();
+  assert.equal(await page.locator('#trade-rows tr').count(), 0);
+  assert.equal(await page.locator('#configured-duration').innerText(), '15:00');
+  assert.equal(await page.locator('#network-limit').innerText(), '30 seconds');
+  await mkdir('artifacts', { recursive: true });
+  await page.screenshot({ path: 'artifacts/dashboard-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Pull latest trades' }).click();
+  await page.getByRole('button', { name: 'Pull in progress' }).waitFor();
+  await page.getByRole('button', { name: 'Run 30-second timeout test' }).click();
+  await page.locator('#timeout-result').filter({ hasText: 'connection failed' }).waitFor({ timeout: 35000 });
+  await page.locator('#network-event').filter({ hasText: 'socket killed' }).waitFor();
+  await page.screenshot({ path: 'artifacts/dashboard-timeout.png', fullPage: true });
+  await page.locator('#trade-rows tr').first().waitFor({ timeout: 20000 });
+  assert.equal(await page.locator('#pull-button').isDisabled(), true);
+  await page.getByRole('searchbox').fill('TCS');
+  assert.ok((await page.locator('#trade-rows tr').count()) > 0);
+  assert.ok((await page.locator('#trade-rows').innerText()).includes('TCS'));
+  await page.getByRole('button', { name: 'Next page' }).click();
+  assert.ok((await page.locator('#page-number').innerText()).startsWith('2 /'));
+  await page.getByRole('searchbox').fill('');
+  await page.getByRole('button', { name: 'Pull latest trades' }).waitFor({ timeout: ASSESSMENT_PULL_MS + 60000 });
+  assert.equal(await page.locator('#total-trades').innerText(), '2,000');
+  assert.equal(requests.length, 2, 'Only the two user actions; no HTTP polling');
+  assert.ok(sockets.length >= 36, 'WebSocket renewed throughout the full 15-minute pull');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+  const download = await downloadPromise;
+  assert.equal(download.suggestedFilename(), 'bse-trades.csv');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'artifacts/dashboard-mobile.png', fullPage: true });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'No page-level mobile overflow');
+  assert.deepEqual(errors, []);
+  console.log('PASS: 15-minute pull, actual 30-second timeout, live completion, renewal, no polling, search, pagination, CSV, mobile layout.');
+} finally { await browser?.close(); await s.close(); }

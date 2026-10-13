@@ -1,0 +1,25 @@
+{
+  "name": "tradeflow-bse-assessment",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Durable asynchronous BSE imports with a live trades dashboard",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node src/run.js",
+    "demo": "node src/run.js",
+    "test": "node --test --test-isolation=none --test-concurrency=1 test/*.test.js",
+    "test:browser": "node scripts/browser-check.js",
+    "test:assessment": "node scripts/record-walkthrough.js",
+    "walkthrough": "node scripts/record-walkthrough.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "playwright": "^1.56.0"
+  }
+}
