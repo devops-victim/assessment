@@ -1,112 +1,216 @@
-# Tradeflow - BSE asynchronous jobs (Approach B)
+﻿# Tradeflow — BSE Trades Dashboard
 
-The dashboard starts empty. An HTTP POST accepts a durable report job immediately. The exchange processes for **15 minutes**, then the app sends a small **WebSocket completion notification with a download URL**. The browser downloads the completed trades over HTTP and renders them automatically. Later visits immediately show genuinely saved trades, including while another pull runs.
+A mock exchange and live dashboard for the technical assessment: generating trades takes **15 minutes**, while the network drops connections after **30 seconds**. Saved trades load immediately, and completed reports appear automatically without page refreshes, HTTP polling, or cron jobs.
 
-## Run
+## Requirements
 
-Requires Node.js 24 LTS or newer and npm. No database service or frontend build is needed.
+- **Node.js 24 or newer**, which includes the SQLite API used by this project.
+- **npm** (included with Node.js) and a modern browser.
+- Available local ports **3000** and **4100**, or alternate ports configured below.
+
+No separate database service or frontend build is required.
+
+```sh
+node --version
+npm --version
+```
+
+## Setup
+
+### 1. Clone the repository
+
+```sh
+git clone https://github.com/devops-victim/assessment.git
+cd assessment
+```
+
+### 2. Install dependencies
 
 ```sh
 npm ci
+```
+
+### 3. Create your configuration
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+macOS / Linux:
+
+```sh
+cp .env.example .env
+```
+
+The defaults work without modification. The application loads `.env` automatically.
+
+### 4. Start the application
+
+```sh
 npm start
 ```
 
-Open **http://localhost:3000** and click **Pull latest trades**. On the first pull the table remains empty while the report is generated. After the real 15-minute duration, all 2,000 trades appear following the automatic HTTP download. Open a second tab to see it receive the same completion notification and download its copy. Search, filtering, pagination and CSV export work on saved trades during later pulls.
+This starts both services together:
 
-`npm run demo` is an alias for the same full-duration startup. Runtime delays shorter than 15 minutes are rejected.
+- Dashboard: **http://localhost:3000**
+- Dashboard health: **http://localhost:3000/api/health**
+- Mock exchange health: **http://localhost:4100/health**
 
-## Protocol
+Keep the terminal open during testing. Press **Ctrl+C** to stop both services.
 
-1. `POST /api/pulls` immediately returns **202 Accepted**:
+## Using the dashboard
 
-```json
-{"job_id":"example-id","websocket_url":"/live?job_id=example-id","job":{"id":"example-id","status":"running"},"alreadyRunning":false}
-```
+1. Open the dashboard. With a fresh data directory, the table starts empty.
+2. Click **Pull latest trades**. The request immediately returns a job ID while processing continues in the background.
+3. Wait the full **15 minutes**. The first pull keeps the table empty until the completed report is ready.
+4. A WebSocket completion notification triggers one HTTP report download. **2,000 trades** appear automatically on the open dashboard.
+5. Search, filter by symbol, paginate, or export CSV.
+6. Start another pull manually. Existing records remain visible while processing; another **2,000 new trades** arrive on completion, bringing the total to **4,000**.
 
-2. Subscribe to the returned job-specific WebSocket URL. The job continues independently of browser connections. No trade rows are transmitted over WebSocket.
-3. When the report is committed, the server sends:
+There is no fixed 5,000-trade dataset or automatic next pull. Each job generates a new seeded batch with distinct trade IDs. Only one pull runs at a time; repeated triggers reuse the active job.
 
-```json
-{"type":"job","job_id":"example-id","status":"completed","download_url":"/api/pulls/example-id/trades","imported":2000}
-```
-
-4. The browser performs **one HTTP GET** to that URL, merges the result into its cached trades and updates the open page. Repeated or replayed notifications do not cause duplicate successful downloads.
-
-The browser makes one initial `GET /api/trades` to load saved data. There is no timed HTTP data/status polling, cron job or automatic pull scheduler. WebSocket messages carry compact job/connection metadata; HTTP carries the report.
-
-## The 30-second limit
-
-Both HTTP services enforce an actual 30-second accepted-socket lifetime. The visible **Run 30-second timeout test** control forwards the original synchronous, slow `GET /getTrades`. The connection is destroyed at 30 seconds and the UI displays the observed failure and server timeout event. The background report job continues unaffected.
-
-The simulation conservatively applies this hard limit to upgraded WebSocket sockets too. A single physical WebSocket therefore cannot be left open for 15 minutes: subscriptions renew at 25 seconds, retaining the same durable job ID. Reconnection replays completion metadata so a missed notification is recoverable. The logical subscription waits for the full report without HTTP polling. If a real network explicitly exempts upgraded WebSocket connections, a persistent socket could instead be used there.
-
-The mock adds an async report interface: the backend starts work with `POST /jobs`, receives a signed callback when ready, fetches the finished `GET /getTrades?jobId=...` once, and commits before notifying browsers. This capability is an explicit mock assumption. An immutable synchronous 15-minute response cannot traverse an upstream path that always drops it at 30 seconds; that situation requires an upstream async interface or an unrestricted worker network path.
+Open a second dashboard tab before completion to check that both update automatically. Reloading or reopening the dashboard immediately loads saved trades. Data and unfinished jobs survive server restarts.
 
 ## Configuration
 
-Copy `.env.example` to `.env`, or set environment variables. `.env` loads automatically; it and runtime data are Git-ignored.
+Edit `.env`, then restart the server:
+
+```dotenv
+PULL_DELAY_MS=900000
+PORT=3000
+MOCK_PORT=4100
+DATA_DIR=./data/jobs
+```
 
 | Setting | Default | Meaning |
-|---|---:|---|
-| `PULL_DELAY_MS` | `900000` | Full report duration; minimum 15 minutes |
-| `PORT` | `3000` | Dashboard port |
-| `MOCK_PORT` | `4100` | Mock exchange port |
-| `DATA_DIR` | `./data/jobs` | Fresh job-notification databases and generated callback secret |
-| `CALLBACK_SECRET` | Generated locally | Shared secret for signed callbacks |
-
-The network limit (30,000 ms) and subscription renewal (25,000 ms) are constants in `src/timing.js`. Both services bind to loopback. Ctrl+C stops them. Saved reports and unfinished jobs survive restart. An existing job retains its original readiness time when new-job configuration changes.
-
-This version starts with a fresh data folder, preserving earlier prototype databases in `data/`. Reusing an older `DATA_DIR` removes only the artificial `BSE-0000-*` startup seed and retains received records; use the new default directory for an empty review run.
-
-## API
-
-| Service | Endpoint | Result |
 |---|---|---|
-| Dashboard | `GET /api/trades` | Initial cache read: saved trades, jobs and timing |
+| `PULL_DELAY_MS` | `900000` | Report delay in milliseconds; minimum 15 minutes |
+| `PORT` | `3000` | Dashboard HTTP and WebSocket port |
+| `MOCK_PORT` | `4100` | Mock exchange HTTP port |
+| `DATA_DIR` | `./data/jobs` | SQLite databases and generated callback secret |
+| `CALLBACK_SECRET` | Generated locally | Optional shared secret for signed exchange callbacks |
+
+For a **16-minute** pull, set `PULL_DELAY_MS=960000`. Normal startup rejects shorter than 15-minute delays. Jobs already accepted keep their original readiness time.
+
+The **30-second** network cutoff and **25-second** WebSocket renewal are constants in `src/timing.js`. `npm run demo` starts the same full-duration application.
+
+To start empty again without deleting existing data, stop the server, set `DATA_DIR=./data/fresh-review` to a new unused directory, and restart. `.env`, runtime databases, and local callback secrets are excluded from Git.
+
+## Architecture
+
+```mermaid
+sequenceDiagram
+    participant UI as Dashboard
+    participant App as Dashboard API
+    participant BSE as Mock Exchange
+    participant DB as SQLite
+    UI->>App: GET /api/trades (saved data once on load)
+    UI->>App: POST /api/pulls
+    App->>DB: Persist job
+    App-->>UI: 202 Accepted + job_id + websocket_url
+    UI->>App: Subscribe to job over WebSocket
+    App->>BSE: POST /jobs
+    BSE-->>App: 202 Accepted
+    Note over BSE: Generate report for 15 minutes
+    Note over UI,App: Renew sockets at 25s before the 30s cutoff
+    BSE->>App: Signed completion callback
+    App->>BSE: GET /getTrades?jobId=...
+    BSE-->>App: Completed report
+    App->>DB: Save report and completed job atomically
+    App-->>UI: WebSocket completion + download_url
+    UI->>App: GET download_url
+    App-->>UI: Report trades
+    Note over UI: Update table automatically
+```
+
+The durable job separates processing time from HTTP connection time. WebSockets carry small notifications; HTTP carries the completed report. SQLite keeps previous reports immediately available and deduplicates imports. Reconnection replays completion metadata so a disconnected dashboard can recover.
+
+The simulation also caps upgraded WebSocket connections. Physical sockets renew at 25 seconds while the logical job subscription continues for the full report duration. This renewal does not poll HTTP data or status. Requested-job timers and completion callbacks drive processing; there is no cron or automatic pull scheduler.
+
+**Upstream assumption:** the mock adds `POST /jobs` and a signed completion callback alongside the requested `GET /getTrades`. This is not a claim about the real BSE API. An upstream offering only a synchronous 15-minute response needs an asynchronous interface or a worker network path that permits that response.
+
+See [the architecture note](docs/ARCHITECTURE.md) for design and recovery details.
+
+## API reference
+
+| Service | Endpoint | Purpose |
+|---|---|---|
+| Dashboard | `GET /api/trades` | Initial saved trades, jobs, and timing |
 | Dashboard | `POST /api/pulls` | Immediate 202 with job ID and WebSocket URL |
-| Dashboard | `WS /live?job_id=<id>` | Job-scoped events; completion includes `download_url` |
-| Dashboard | `WS /live` | Workspace metadata used to discover jobs started in another tab |
-| Dashboard | `GET /api/pulls/<id>/trades` | Completed job's report only; 409 while processing, 404 for unknown jobs |
-| Dashboard | `GET /api/direct-pull` | Real synchronous-request timeout demonstration |
-| Dashboard | `POST /api/exchange-callback` | Signed internal readiness notification |
+| Dashboard | `WS /live?job_id=<id>` | Job notifications; completion includes `download_url` |
+| Dashboard | `WS /live` | Workspace metadata for jobs started in another tab |
+| Dashboard | `GET /api/pulls/<id>/trades` | Completed job report; 409 if processing, 404 if unknown |
+| Dashboard | `GET /api/direct-pull` | Synchronous-request timeout demonstration |
+| Dashboard | `POST /api/exchange-callback` | Signed internal completion callback |
 | Dashboard | `GET /api/health` | Health check |
-| Mock | `POST /jobs` | Accept report generation immediately; supplied `job_id` is idempotent |
-| Mock | `GET /getTrades?jobId=<ready-id>` | Seeded completed trade report |
-| Mock | `GET /getTrades` | Slow synchronous baseline, reset at 30 seconds |
+| Mock | `POST /jobs` | Accept report generation; supplied job ID is idempotent |
+| Mock | `GET /getTrades?jobId=<ready-id>` | Download completed seeded trades |
+| Mock | `GET /getTrades` | Slow synchronous baseline; connection dies at 30 seconds |
 | Mock | `GET /health` | Health and configured timing |
 
-Trades contain trade ID, client, symbol, quantity, price and timestamp. Report imports and job-to-trade associations are atomic, deduplicated and persistent. One active pull is permitted; concurrent triggers reuse its ID.
+Trades include trade ID, client, symbol, quantity, price, and timestamp.
 
-## Verify
+## Testing
+
+### Automated tests
 
 ```sh
 npm test
 ```
 
-Tests cover empty startup, immediate acceptance, job-scoped events, metadata-only WebSockets, one HTTP download per completed job, multiple open dashboards, reconnect replay, restart recovery, callback signatures, origin checks, failures, transaction rollback, per-job report isolation, real socket resets and absence of HTTP polling. Fast test factories explicitly shorten their isolated delays; normal startup cannot do so.
+Tests cover empty startup, immediate acceptance, persistence, callback signatures, duplicate prevention, report isolation, reconnect recovery, multiple dashboards, completion-triggered downloads, and socket timeouts. Isolated tests use shorter injected delays; normal startup retains the real assessment duration.
 
-For the full **15-minute wall-clock check** and recorded protocol evidence:
+### Observe the actual 30-second timeout
+
+With the application running, click **Run 30-second timeout test**. The synchronous request waits for the slow mock response, and its connection is destroyed after approximately **30 seconds**. The dashboard displays the measured failure and network event. Saved trades remain available.
+
+### Full 15-minute verification
 
 ```sh
 npm run test:assessment
 ```
 
-Optional real-browser QA also uses the full duration:
+This starts isolated services, verifies the real 900-second processing duration and 30-second connection reset, and records protocol evidence in `artifacts/walkthrough-events.json`. Allow **at least 15 minutes** for completion.
+
+### Optional browser checks
 
 ```sh
 npx playwright install chromium
 npm run test:browser
 ```
 
-Alternatively set `CHROME_PATH` to an installed Chrome executable. The Windows sandbox blocks Chrome IPC, so visual browser QA is not verified here; the real frontend scripts are covered by DOM integration tests.
+These also use the full pull duration and save screenshots to `artifacts/`. You can supply an installed Chrome executable through `CHROME_PATH`. Browser checks require an environment that allows Chromium processes.
+
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| SQLite import or unsupported Node error | Upgrade to Node.js 24 or newer, then run `npm ci`. |
+| `EADDRINUSE` on startup | Stop the application occupying the port, or change `PORT` / `MOCK_PORT` in `.env`. |
+| Delay validation error | Set `PULL_DELAY_MS` to `900000` or greater. |
+| Old trades appear on startup | Saved data is restored automatically. Use a new `DATA_DIR` for an empty run. |
+| Configuration changes have no effect | Restart the server. Existing jobs keep their original readiness time. |
+| Direct `/getTrades` fails after 30 seconds | This is the intended synchronous failure. Use the dashboard's asynchronous pull. |
+
+## Project structure
+
+```text
+public/       Dashboard HTML, CSS, and browser JavaScript
+src/          Dashboard API, mock exchange, storage, and timing
+test/         Automated tests
+scripts/      Browser checks, full-duration recording, and video rendering
+docs/         Architecture, walkthrough, and submission materials
+.env.example  Configuration template
+```
 
 ## Deliverables
 
-- [Architecture and diagram](docs/ARCHITECTURE.md)
-- [Captioned walkthrough video](docs/walkthrough.mp4) and [recorded events](docs/walkthrough-events.json)
-- [Browser screen-recording guide](docs/WALKTHROUGH.md)
+- [Architecture note and diagram](docs/ARCHITECTURE.md)
+- [Captioned video walkthrough](docs/walkthrough.mp4)
+- [Recorded walkthrough events](docs/walkthrough-events.json)
+- [Walkthrough and screen-recording guide](docs/WALKTHROUGH.md)
 - [Submission email draft](docs/SUBMISSION.md)
 
-The video preserves actual elapsed timestamps and labels its compressed waiting segment. To reproduce it, run `npm run walkthrough` followed by `python scripts/render-video.py` (Pillow and opencv-python are needed only for rendering). Generated artifacts go to `artifacts/`.
-
-Publish the repository to your Git host before sending the draft to **chirag.g@arhamfintech.ai**, CC **hr@arhamfintech.ai**. No email has been sent. This sandbox cannot create Git commits; use your normal terminal to stage, commit and push the final files.
+The video retains actual elapsed timestamps and labels the compressed waiting segment. To generate a new recording, run `npm run walkthrough`. To render it, install Python, Pillow, and opencv-python, then run `python scripts/render-video.py`. Generated artifacts go to `artifacts/`.
