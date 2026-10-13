@@ -1,52 +1,47 @@
-# Approach B: accept a job, notify completion, download over HTTP
+﻿# Architecture Note — BSE Trades Dashboard
+
+## Design
+
+Use a durable asynchronous job for the 15-minute pull, WebSockets for completion notifications, and short HTTP requests to transfer completed reports. The dashboard reads saved trades immediately instead of waiting for the exchange.
 
 ```mermaid
 sequenceDiagram
     participant UI as Dashboard
-    participant App as Dashboard API
+    participant API as Dashboard API
     participant DB as SQLite
-    participant BSE as Mock exchange
-    UI->>App: GET /api/trades (once on load)
-    App-->>UI: Empty first time; cached reports on later visits
-    UI->>App: POST /api/pulls
-    App->>DB: Persist running job
-    App-->>UI: 202 Accepted + job_id + websocket_url
-    UI->>App: WS /live?job_id=...
-    App-->>UI: Processing metadata (no rows)
-    App->>BSE: POST /jobs with same job_id
-    BSE-->>App: 202 Accepted
-    Note over BSE: Full 900-second report generation; no held HTTP request
-    Note over UI,App: Logical job subscription renews at 25s before the 30s hard cap
-    BSE->>App: Signed ready callback
-    App->>BSE: GET /getTrades?jobId=... (once after ready)
-    BSE-->>App: Completed report
-    App->>DB: Atomic report import + job completion + associations
-    App-->>UI: WS {status: completed, download_url: ...}
-    UI->>App: GET download_url (once)
-    App-->>UI: This job's trade report
-    Note over UI: Render automatically, no page refresh or polling
+    participant BSE as Mock BSE API
+
+    UI->>API: GET /api/trades (once on load)
+    API->>DB: Read saved trades
+    API-->>UI: Saved trades, or empty on first use
+    UI->>API: POST /api/pulls
+    API->>DB: Persist running job
+    API-->>UI: 202 Accepted + job_id + websocket_url
+    UI->>API: Subscribe to job over WebSocket
+    API->>BSE: POST /jobs
+    BSE-->>API: 202 Accepted
+    Note over BSE: Process for 15 minutes
+    Note over UI,API: Renew physical sockets at 25s before the 30s cutoff
+    BSE->>API: Signed completion callback
+    API->>BSE: GET /getTrades?jobId=...
+    BSE-->>API: Completed report (2,000 trades)
+    API->>DB: Atomically save trades and completed job
+    API-->>UI: WebSocket: completed + download_url
+    UI->>API: GET download_url
+    API-->>UI: Completed report
+    Note over UI: Merge trades and update table automatically
 ```
 
-The browser never owns the long-running work. Accepting the job is a short HTTP request, and a durable job ID survives browser closure, connection renewal or backend restart. The first dashboard has zero records. Completed reports persist and remain available while subsequent jobs are processing. No partial records or fabricated startup snapshot are shown.
+## Why this design
 
-WebSockets carry small job/connection metadata. Completion is announced only after the completed report and its job-to-trade association commit atomically. The download route returns exactly that job's records, not all historical dashboard trades. The browser merges by trade ID and records successful downloads to suppress duplicate GETs when completion notifications replay.
+- **Avoids long HTTP requests:** job acceptance returns immediately; the 15-minute processing runs independently. HTTP downloads occur only once the report is ready.
+- **Keeps the dashboard responsive:** a fresh installation starts empty. Later visits show persisted trades immediately, including during another pull. Each completed job adds 2,000 new trades.
+- **Updates without polling:** a signed exchange callback triggers the import, then a WebSocket event triggers the browser's report download. No timed HTTP status requests, cron jobs, or automatic pull scheduler are needed.
+- **Recovers from interruptions:** SQLite persists jobs, readiness times, and trades. Reconnecting browsers receive completion metadata again; trade IDs and atomic imports prevent duplicate records. Only one pull runs at a time.
+- **Keeps setup small:** the dashboard API and mock exchange run as two local services in one Node.js process, with SQLite and no separate database server.
 
-A job-specific subscription receives that job's explicit events. Compact workspace metadata lets another open tab discover a newly started job and subscribe to it. Durable completed metadata on reconnect covers a completion missed during a disconnect or channel change. One initial cache GET and completion-driven report GETs are not a polling loop.
+## Timing and upstream assumption
 
-## Connection and work lifetimes
+The default delay is **900,000 ms (15 minutes)**, configurable through `PULL_DELAY_MS` to 15 minutes or longer. The network simulation actually destroys connections at **30 seconds**; the dashboard includes a synchronous-request test that visibly demonstrates this failure. The same cap applies to upgraded WebSocket sockets, so they renew at **25 seconds** while retaining the logical job subscription. Renewing the connection does not restart the report.
 
-The application reproduces the original synchronous failure with a real slow GET. A hard timer attached to each accepted socket destroys it after 30 seconds, even when it is waiting for a response. The UI shows the observed network timeout and the terminal records its actual lifetime. A response timeout setting alone would not reproduce this network condition.
-
-This conservative simulation also caps upgraded WebSocket sockets. Therefore, the physical socket renews at 25 seconds while the logical job subscription remains active for the full 15 minutes. If an actual network exempts upgraded WebSockets, one long-lived socket can be used; that exemption is not assumed here. HTTP download occurs only after report generation, so the transfer itself is short for the assessment's few thousand records.
-
-The mock persists an absolute readiness time and uses one requested-job timer. It never publishes a report before that time. Startup recovery restores the remaining delay, and idempotent `POST /jobs` requests use the original job ID. Ready callbacks are HMAC-signed, time-bounded and retried up to six times. The dashboard's job deadline reports missing completion while preserving existing saved reports. No cron job, periodic database scan or automatic pull scheduler is present.
-
-## Upstream assumption
-
-The mock explicitly adds `POST /jobs` and a ready callback. It retains the original synchronous `GET /getTrades`, which fails over the restricted path, and serves the completed report by that GET once ready. This async capability is not a claim about the real BSE API. If an upstream offers only an immutable 15-minute synchronous response and all upstream paths die after 30 seconds, a different upstream interface or a worker outside that network limit is required.
-
-## Scope and verification
-
-SQLite and two logical HTTP services in one local Node process keep setup simple. A partial unique index prevents concurrent duplicate jobs; primary-key deduplication and transactions prevent repeated callbacks from duplicating imports. A larger deployment would add a shared database, durable queue, event fanout, authentication, TLS and object storage/range downloads for large files.
-
-Both services bind to loopback. Seeded exchange trades are fictional. Monetary production code should use decimals or integer minor units. Tests exercise the full browser protocol through real frontend scripts, including one completion-triggered download in each of two open dashboards. The full-duration script verifies 900-second generation, 30-second socket reset, metadata-only WebSockets and HTTP delivery. Chrome visual QA is blocked by sandbox IPC restrictions and remains reproducible through the included Playwright script.
+The mock explicitly adds `POST /jobs` and a completion callback alongside `GET /getTrades`. This assumes an asynchronous upstream interface; it does not claim that the real BSE API supports these endpoints. If an upstream only provides a synchronous 15-minute response, a worker must have a network path that permits that request, or the upstream interface must change.
