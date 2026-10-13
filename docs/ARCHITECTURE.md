@@ -1,4 +1,4 @@
-﻿# Architecture Note — BSE Trades Dashboard
+# Architecture Note — BSE Trades Dashboard
 
 ## Design
 
@@ -13,7 +13,7 @@ sequenceDiagram
 
     UI->>API: GET /api/trades (once on load)
     API->>DB: Read saved trades
-    API-->>UI: Saved trades, or empty on first use
+    API-->>UI: Saved trades (300 seeded historical trades on first use)
     UI->>API: POST /api/pulls
     API->>DB: Persist running job
     API-->>UI: 202 Accepted + job_id + websocket_url
@@ -35,7 +35,7 @@ sequenceDiagram
 ## Why this design
 
 - **Avoids long HTTP requests:** job acceptance returns immediately; the 15-minute processing runs independently. HTTP downloads occur only once the report is ready.
-- **Keeps the dashboard responsive:** a fresh installation starts empty. Later visits show persisted trades immediately, including during another pull. Each completed job adds 2,000 new trades.
+- **Keeps the dashboard responsive:** a fresh installation starts with 300 seeded historical trades. Later visits show persisted trades immediately, including during another pull. Each completed job appends 2,000 new trades without replacing existing records (300 -> 2,300 -> 4,300).
 - **Updates without polling:** a signed exchange callback triggers the import, then a WebSocket event triggers the browser's report download. No timed HTTP status requests, cron jobs, or automatic pull scheduler are needed.
 - **Recovers from interruptions:** SQLite persists jobs, readiness times, and trades. Reconnecting browsers receive completion metadata again; trade IDs and atomic imports prevent duplicate records. Only one pull runs at a time.
 - **Keeps setup small:** the dashboard API and mock exchange run as two local services in one Node.js process, with SQLite and no separate database server.

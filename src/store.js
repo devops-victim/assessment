@@ -1,7 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import { ASSESSMENT_PULL_MS } from './timing.js';
+import { seededTrades } from './common.js';
 
-export function openStore(path) {
+export function openStore(path, { initialTradeCount = 300 } = {}) {
   const db = new DatabaseSync(path);
   db.exec(`PRAGMA journal_mode=WAL;
     CREATE TABLE IF NOT EXISTS trades (
@@ -28,6 +29,16 @@ export function openStore(path) {
   };
   // Remove only the old artificial startup snapshot. Actual pulled trades remain.
   db.prepare("DELETE FROM trades WHERE tradeId LIKE 'BSE-0000-%'").run();
+  // Simulated previously received trades have stable IDs distinct from pull jobs.
+  // Inserting on startup is idempotent and preserves all existing reports.
+  if (initialTradeCount > 0) {
+    const history = seededTrades(0, initialTradeCount).map(trade => ({
+      ...trade, tradeId: trade.tradeId.replace('BSE-0000-', 'BSE-HISTORY-')
+    }));
+    db.exec('BEGIN IMMEDIATE');
+    try { addTrades(history); db.exec('COMMIT'); }
+    catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
+  }
   const complete = (id, trades) => {
     const job = db.prepare('SELECT * FROM jobs WHERE id=?').get(id);
     if (!job || job.status !== 'running') return 0;

@@ -12,7 +12,8 @@ export async function system(options = {}) {
     callbackUrl: () => `http://127.0.0.1:${app.port}/api/exchange-callback`, secret, onError: () => {} };
   let mock = await createMock(mockConfig);
   const config = { port: 0, dbPath: join(dir, 'app.sqlite'), mockUrl: `http://127.0.0.1:${mock.port}`, secret,
-    delayMs: options.delayMs ?? 120, connectionLimitMs: options.connectionLimitMs ?? 30000, wsLifetimeMs: options.wsLifetimeMs ?? 25000, deadlineGraceMs: options.deadlineGraceMs ?? 120000 };
+    delayMs: options.delayMs ?? 120, connectionLimitMs: options.connectionLimitMs ?? 30000, wsLifetimeMs: options.wsLifetimeMs ?? 25000, deadlineGraceMs: options.deadlineGraceMs ?? 120000,
+    initialTradeCount: options.initialTradeCount ?? 0 };
   app = await createApp(config);
   return {
     get app() { return app; }, get mock() { return mock; }, dir, secret,

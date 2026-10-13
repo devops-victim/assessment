@@ -13,8 +13,8 @@ function waitFor(window, predicate, timeout = 4000) {
   });
 }
 
-test('dashboard starts empty, downloads once on completion, and filters cached trades during later jobs', async t => {
-  const s = await system({ delayMs: 2000, wsLifetimeMs: 150 }); t.after(() => s.close());
+test('dashboard shows historical trades, appends a completed report, and filters during later jobs', async t => {
+  const s = await system({ delayMs: 2000, wsLifetimeMs: 150, initialTradeCount: 300 }); t.after(() => s.close());
   const httpRequests = [];
   const dom = await JSDOM.fromURL(s.url, {
     resources: 'usable', runScripts: 'dangerously', pretendToBeVisual: true,
@@ -25,17 +25,18 @@ test('dashboard starts empty, downloads once on completion, and filters cached t
   });
   t.after(() => dom.window.close());
   const w = dom.window, d = w.document;
-  await waitFor(w, () => d.getElementById('total-trades').textContent === '0');
-  assert.equal(d.querySelectorAll('#trade-rows tr').length, 0);
-  assert.match(d.getElementById('empty-state').textContent, /No trades yet/);
-  assert.equal(d.getElementById('export-button').disabled, true);
+  await waitFor(w, () => d.getElementById('total-trades').textContent === '300');
+  assert.equal(d.querySelectorAll('#trade-rows tr').length, 10);
+  assert.equal(d.getElementById('empty-state').hidden, true);
+  assert.equal(d.getElementById('export-button').disabled, false);
   assert.match(d.getElementById('activity-list').textContent, /No pulls yet/);
   d.getElementById('pull-button').click();
   await waitFor(w, () => d.getElementById('pull-button-label').textContent === 'Pull in progress');
   assert.equal(d.getElementById('pull-button').disabled, true);
-  assert.equal(d.querySelectorAll('#trade-rows tr').length, 0);
+  assert.equal(d.querySelectorAll('#trade-rows tr').length, 10);
+  assert.equal(d.getElementById('total-trades').textContent, '300');
   assert.match(d.getElementById('pull-title').textContent, /Generating/);
-  await waitFor(w, () => d.getElementById('total-trades').textContent === '2,000');
+  await waitFor(w, () => d.getElementById('total-trades').textContent === '2,300');
   assert.equal(d.getElementById('pull-button').disabled, false);
   assert.match(d.getElementById('toast').textContent, /2,000 trades downloaded/);
   assert.equal(httpRequests.length, 3);
@@ -43,7 +44,7 @@ test('dashboard starts empty, downloads once on completion, and filters cached t
   assert.match(httpRequests[2], /^\/api\/pulls\/[\w-]+\/trades$/);
   d.getElementById('pull-button').click();
   await waitFor(w, () => d.getElementById('pull-button').disabled === true);
-  assert.equal(d.getElementById('total-trades').textContent, '2,000');
+  assert.equal(d.getElementById('total-trades').textContent, '2,300');
   const search = d.getElementById('search'); search.value = 'TCS'; search.dispatchEvent(new w.Event('input'));
   assert.equal(d.querySelectorAll('#trade-rows .symbol-badge').length, 10);
   assert.ok([...d.querySelectorAll('#trade-rows .symbol-badge')].every(e => e.textContent === 'TCS'));

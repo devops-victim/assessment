@@ -6,7 +6,7 @@ import { system } from '../test/helpers.js';
 import { ASSESSMENT_PULL_MS, NETWORK_CONNECTION_LIMIT_MS, LIVE_RENEWAL_MS } from '../src/timing.js';
 
 await mkdir('artifacts', { recursive: true });
-const s = await system({ delayMs: ASSESSMENT_PULL_MS, connectionLimitMs: NETWORK_CONNECTION_LIMIT_MS, wsLifetimeMs: LIVE_RENEWAL_MS });
+const s = await system({ initialTradeCount: 300, delayMs: ASSESSMENT_PULL_MS, connectionLimitMs: NETWORK_CONNECTION_LIMIT_MS, wsLifetimeMs: LIVE_RENEWAL_MS });
 const origin = performance.now(), events = [];
 function record(label, detail) {
   const event = { seconds: (performance.now() - origin) / 1000, label, detail };
@@ -24,7 +24,7 @@ function connect() {
     assert.equal('trades' in event, false, 'No report data may be sent over WebSocket');
     if (event.type === 'snapshot') {
       const job = event.jobs.find(j => j.id === jobId);
-      if (job?.status === 'running') assert.equal(s.app.store.trades().length, 0, 'No data before report completion');
+      if (job?.status === 'running') assert.equal(s.app.store.trades().length, 300, 'Historical trades remain visible before report completion');
       record('Subscription state', `Job ${job?.status}; notification metadata only`);
     }
     if (event.type === 'job' && event.status === 'completed' && !downloading) {
@@ -46,7 +46,7 @@ function connect() {
 }
 try {
   const initial = await (await fetch(s.url + '/api/trades')).json();
-  assert.equal(initial.trades.length, 0); record('Initial HTTP cache read', '0 trades; the dashboard starts empty');
+  assert.equal(initial.trades.length, 300); record('Initial HTTP cache read', '300 historical trades; new report will be appended');
   startedAt = performance.now();
   const trigger = await fetch(s.url + '/api/pulls', { method: 'POST' });
   assert.equal(trigger.status, 202);
@@ -65,8 +65,8 @@ try {
   });
   const [directElapsedMs] = await Promise.all([direct, complete]);
   assert.ok(completedElapsedMs >= ASSESSMENT_PULL_MS); assert.ok(connectionCount >= 36);
-  assert.equal(s.app.store.job(jobId).status, 'completed'); assert.equal(s.app.store.trades().length, 2000);
+  assert.equal(s.app.store.job(jobId).status, 'completed'); assert.equal(s.app.store.trades().length, 2300);
   await writeFile('artifacts/walkthrough-events.json', JSON.stringify({ approach: 'B', delayMs: ASSESSMENT_PULL_MS,
-    connectionLimitMs: NETWORK_CONNECTION_LIMIT_MS, completedElapsedMs, downloadElapsedMs, directElapsedMs, connectionCount, initialTradeCount: 0, events }, null, 2));
+    connectionLimitMs: NETWORK_CONNECTION_LIMIT_MS, completedElapsedMs, downloadElapsedMs, directElapsedMs, connectionCount, initialTradeCount: 300, events }, null, 2));
   console.log('PASS: Approach B, actual 15-minute processing, small WS notification, HTTP download, actual 30-second reset.');
 } finally { stopping = true; clearTimeout(deadline); directRequest?.destroy(); ws?.terminate(); await s.close(); }

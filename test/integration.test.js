@@ -14,6 +14,29 @@ test('seeded exchange records are deterministic and contain valid required field
   assert.throws(() => integerEnv('-1', 0, 'delay', 0));
 });
 
+test('historical trades survive appended reports and restarts without duplication', async t => {
+  const s = await system({ initialTradeCount: 300, delayMs: 150 }); t.after(() => s.close());
+  const historical = s.app.store.trades();
+  assert.equal(historical.length, 300);
+  const ws = new WebSocket(s.url.replace('http:', 'ws:') + '/live'); t.after(() => ws.terminate());
+  await waitSnapshot(ws, data => data.jobs.length === 0);
+  for (const total of [2300, 4300]) {
+    const completed = waitJob(ws, event => event.status === 'completed');
+    await fetch(s.url + '/api/pulls', { method: 'POST' });
+    const event = await completed;
+    const report = await (await fetch(s.url + event.download_url)).json();
+    assert.equal(report.trades.length, 2000);
+    const saved = s.app.store.trades();
+    assert.equal(saved.length, total);
+    const byId = new Map(saved.map(trade => [trade.tradeId, trade]));
+    for (const trade of historical) assert.deepEqual(byId.get(trade.tradeId), trade);
+  }
+  ws.terminate();
+  await s.restartApp();
+  assert.equal(s.app.store.trades().length, 4300);
+  assert.equal(s.app.store.trades().filter(trade => trade.tradeId.startsWith('BSE-HISTORY-')).length, 300);
+});
+
 test('POST accepts immediately; job channels notify two clients, then HTTP downloads the report', async t => {
   const s = await system({ delayMs: 700 }); t.after(() => s.close());
   assert.equal(s.app.store.trades().length, 0);
@@ -95,7 +118,7 @@ test('unreachable exchange fails the job while retaining previous genuine import
   const ws = new WebSocket(`ws://127.0.0.1:${app.port}/live`); t.after(() => ws.terminate());
   const failed = waitJob(ws, d => d.status === 'failed');
   assert.equal((await fetch(`http://127.0.0.1:${app.port}/api/pulls`, { method: 'POST' })).status, 202);
-  assert.match((await failed).error, /Could not pull/); assert.equal(app.store.trades().length, 3);
+  assert.match((await failed).error, /Could not pull/); assert.equal(app.store.trades().length, 303);
 });
 
 test('job deadline reports missing final completion without exposing partial data', async t => {

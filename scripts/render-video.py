@@ -78,7 +78,8 @@ for frame in range(duration * fps):
             draw_text(d, (570, y), e['detail'], 18, '#aeb8ca', mono=True)
         d.rounded_rectangle((55, 737, 1545, 775), 9, fill='#e7e3f4')
         d.rounded_rectangle((55, 737, 55 + int(1490 * min(1, elapsed / 900)), 775), 9, fill='#8b7fd9')
-        label = 'Report completed: small WebSocket notification, then one HTTP download of 2,000 trades.' if elapsed >= capture['completedElapsedMs']/1000 else ('30s timeout observed. The durable 15-minute job keeps processing; no partial data.' if elapsed >= capture['directElapsedMs']/1000 + .1 else 'Initial table empty. The job subscription is waiting for completion metadata.')
+        initial_count = capture.get('initialTradeCount', 0)
+        label = f'Report completed: download 2,000 new trades; {initial_count + 2000:,} total.' if elapsed >= capture['completedElapsedMs']/1000 else ('30s timeout observed. Saved trades remain available while the job runs.' if elapsed >= capture['directElapsedMs']/1000 + .1 else f'Initial table: {initial_count:,} saved trades. Waiting for completion metadata.')
         draw_text(d, (65, 786), label, 21, '#6c618e', bold=True)
     else:
         im, d = base('03 / RUN & REVIEW', 'One repository. Two HTTP services. Persistent state.', 'Normal startup always uses at least 15 minutes. The 30-second network cap is enforced.')

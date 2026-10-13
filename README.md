@@ -1,4 +1,4 @@
-﻿# Tradeflow — BSE Trades Dashboard
+# Tradeflow — BSE Trades Dashboard
 
 A mock exchange and live dashboard for the technical assessment: generating trades takes **15 minutes**, while the network drops connections after **30 seconds**. Saved trades load immediately, and completed reports appear automatically without page refreshes, HTTP polling, or cron jobs.
 
@@ -62,12 +62,12 @@ Keep the terminal open during testing. Press **Ctrl+C** to stop both services.
 
 ## Using the dashboard
 
-1. Open the dashboard. With a fresh data directory, the table starts empty.
+1. Open the dashboard. The table immediately shows 300 seeded historical trades on a fresh installation.
 2. Click **Pull latest trades**. The request immediately returns a job ID while processing continues in the background.
-3. Wait the full **15 minutes**. The first pull keeps the table empty until the completed report is ready.
-4. A WebSocket completion notification triggers one HTTP report download. **2,000 trades** appear automatically on the open dashboard.
+3. Wait the full **15 minutes**. The 300 historical trades remain visible until the completed report is ready.
+4. A WebSocket completion notification triggers one HTTP report download. **2,000 new trades** are appended automatically, bringing the first-pull total to **2,300**.
 5. Search, filter by symbol, paginate, or export CSV.
-6. Start another pull manually. Existing records remain visible while processing; another **2,000 new trades** arrive on completion, bringing the total to **4,000**.
+6. Start another pull manually. Existing records remain visible while processing; another **2,000 new trades** arrive on completion, bringing the total to **4,300**.
 
 There is no fixed 5,000-trade dataset or automatic next pull. Each job generates a new seeded batch with distinct trade IDs. Only one pull runs at a time; repeated triggers reuse the active job.
 
@@ -96,7 +96,7 @@ For a **16-minute** pull, set `PULL_DELAY_MS=960000`. Normal startup rejects sho
 
 The **30-second** network cutoff and **25-second** WebSocket renewal are constants in `src/timing.js`. `npm run demo` starts the same full-duration application.
 
-To start empty again without deleting existing data, stop the server, set `DATA_DIR=./data/fresh-review` to a new unused directory, and restart. `.env`, runtime databases, and local callback secrets are excluded from Git.
+To start with only the 300 historical trades without deleting existing data, stop the server, set `DATA_DIR=./data/fresh-review` to a new unused directory, and restart. `.env`, runtime databases, and local callback secrets are excluded from Git.
 
 ## Architecture
 
@@ -160,7 +160,7 @@ Trades include trade ID, client, symbol, quantity, price, and timestamp.
 npm test
 ```
 
-Tests cover empty startup, immediate acceptance, persistence, callback signatures, duplicate prevention, report isolation, reconnect recovery, multiple dashboards, completion-triggered downloads, and socket timeouts. Isolated tests use shorter injected delays; normal startup retains the real assessment duration.
+Tests cover historical startup, append behavior, empty-store recovery scenarios, immediate acceptance, persistence, callback signatures, duplicate prevention, report isolation, reconnect recovery, multiple dashboards, completion-triggered downloads, and socket timeouts. Isolated tests use shorter injected delays; normal startup retains the real assessment duration.
 
 ### Observe the actual 30-second timeout
 
@@ -190,7 +190,7 @@ These also use the full pull duration and save screenshots to `artifacts/`. You 
 | SQLite import or unsupported Node error | Upgrade to Node.js 24 or newer, then run `npm ci`. |
 | `EADDRINUSE` on startup | Stop the application occupying the port, or change `PORT` / `MOCK_PORT` in `.env`. |
 | Delay validation error | Set `PULL_DELAY_MS` to `900000` or greater. |
-| Old trades appear on startup | Saved data is restored automatically. Use a new `DATA_DIR` for an empty run. |
+| Old trades appear on startup | Saved data is restored automatically. Use a new `DATA_DIR` to start with only the 300 historical trades. |
 | Configuration changes have no effect | Restart the server. Existing jobs keep their original readiness time. |
 | Direct `/getTrades` fails after 30 seconds | This is the intended synchronous failure. Use the dashboard's asynchronous pull. |
 

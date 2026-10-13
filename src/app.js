@@ -20,8 +20,8 @@ function validateTrades(value) {
   return value;
 }
 
-export async function createApp({ port = 3000, dbPath = ':memory:', mockUrl, secret, delayMs = ASSESSMENT_PULL_MS, connectionLimitMs = NETWORK_CONNECTION_LIMIT_MS, wsLifetimeMs = LIVE_RENEWAL_MS, deadlineGraceMs = 120000 }) {
-  const store = openStore(dbPath);
+export async function createApp({ port = 3000, dbPath = ':memory:', mockUrl, secret, delayMs = ASSESSMENT_PULL_MS, connectionLimitMs = NETWORK_CONNECTION_LIMIT_MS, wsLifetimeMs = LIVE_RENEWAL_MS, deadlineGraceMs = 120000, initialTradeCount = 300 }) {
+  const store = openStore(dbPath, { initialTradeCount });
   const deadlines = new Map();
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 });
   let stopping = false;
