@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
 import { createMock } from '../src/mock.js';
-import { runtimeTiming, ASSESSMENT_PULL_MS, NETWORK_CONNECTION_LIMIT_MS } from '../src/timing.js';
+import { runtimeTiming, ASSESSMENT_PULL_MS, NETWORK_CONNECTION_LIMIT_MS, enforceConnectionLimit } from '../src/timing.js';
 import { system, waitSnapshot } from './helpers.js';
 
 test('normal runtime uses the exact assessment limits and rejects shortened demo delays', () => {
@@ -16,6 +17,24 @@ test('normal runtime uses the exact assessment limits and rejects shortened demo
   assert.equal(runtimeTiming({ PULL_DELAY_MS: '960000' }).delayMs, 960000);
   // Environment variables cannot silently weaken the problem's network limit.
   assert.equal(runtimeTiming({ NETWORK_TIMEOUT_MS: '999999', WS_LIFETIME_MS: '999999' }).connectionLimitMs, 30000);
+});
+
+test('a connection without an HTTP request is identified as idle at cutoff', async t => {
+  const server = http.createServer();
+  const observed = new Promise(resolve => enforceConnectionLimit(server, 100, resolve));
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const socket = net.connect(server.address().port, '127.0.0.1');
+  t.after(() => socket.destroy());
+  const closed = new Promise((resolve, reject) => {
+    socket.once('close', resolve);
+    socket.once('error', reject);
+  });
+  const event = await observed;
+  await closed;
+  assert.equal(event.kind, 'Idle');
+  assert.equal(event.path, null);
+  assert.ok(event.elapsedMs >= 100);
 });
 
 test('default mock persists a readiness time a full 15 minutes after acceptance', async t => {

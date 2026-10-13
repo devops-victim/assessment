@@ -25,7 +25,7 @@ export function enforceConnectionLimit(server, limitMs, onTimeout = () => {}) {
       const remaining = limitMs - (Date.now() - connectedAt);
       if (remaining > 0) { deadline = setTimeout(expire, remaining); return; }
       const event = { connectedAt, timedOutAt: Date.now(), elapsedMs: Date.now() - connectedAt,
-        limitMs, path: socket.tradeflowPath || 'unidentified connection', kind: socket.tradeflowKind || 'HTTP' };
+        limitMs, path: socket.tradeflowPath || null, kind: socket.tradeflowKind || 'Idle' };
       socket.destroy();
       onTimeout(event);
     }

@@ -111,9 +111,10 @@ function applySnapshot(data) {
   text('configured-duration', duration(currentPullDuration()));
   text('batch-cadence', 'Job completed event → one HTTP download');
   text('network-limit', `${connectionLimitMs / 1000} seconds`);
-  const cutoff = data.networkTimeouts[0];
+  const cutoff = data.networkTimeouts.find(event => event.path === '/api/direct-pull') ?? data.networkTimeouts[0];
   if (cutoff) {
-    text('network-event', `Observed network timeout: ${cutoff.kind} ${cutoff.path} socket killed after ${(cutoff.elapsedMs / 1000).toFixed(2)} seconds (limit ${cutoff.limitMs / 1000}s). ${time(cutoff.timedOutAt)} IST.`);
+    const connection = cutoff.kind === 'Idle' ? 'Idle connection (no HTTP request received)' : `${cutoff.kind} ${cutoff.path}`;
+    text('network-event', `Observed network timeout: ${connection} socket killed after ${(cutoff.elapsedMs / 1000).toFixed(2)} seconds (limit ${cutoff.limitMs / 1000}s). ${time(cutoff.timedOutAt)} IST.`);
     $('network-event').hidden = false;
   }
   const completed = jobs.filter(j => j.status === 'completed');

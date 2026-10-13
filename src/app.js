@@ -12,9 +12,9 @@ function validateTrades(value) {
   const ids = new Set();
   for (const t of value) {
     if (!t || typeof t.tradeId !== 'string' || t.tradeId.length > 80 || ids.has(t.tradeId) ||
-        typeof t.client !== 'string' || !t.client || typeof t.symbol !== 'string' || !t.symbol ||
-        !Number.isSafeInteger(t.quantity) || t.quantity <= 0 || !Number.isFinite(t.price) || t.price <= 0 ||
-        typeof t.timestamp !== 'string' || !Number.isFinite(Date.parse(t.timestamp))) throw new Error('Invalid trade record');
+      typeof t.client !== 'string' || !t.client || typeof t.symbol !== 'string' || !t.symbol ||
+      !Number.isSafeInteger(t.quantity) || t.quantity <= 0 || !Number.isFinite(t.price) || t.price <= 0 ||
+      typeof t.timestamp !== 'string' || !Number.isFinite(Date.parse(t.timestamp))) throw new Error('Invalid trade record');
     ids.add(t.tradeId);
   }
   return value;
@@ -27,13 +27,19 @@ export async function createApp({ port = 3000, dbPath = ':memory:', mockUrl, sec
   let stopping = false;
   const networkTimeouts = [];
   const upstreamRequests = new Set();
-  const state = () => ({ type: 'snapshot', jobs: store.jobs().map(job => ({ ...job,
-    ...(job.status === 'completed' ? { download_url: `/api/pulls/${encodeURIComponent(job.id)}/trades` } : {}) })), delayMs,
-    connectionLimitMs, wsLifetimeMs, totalTrades: TRADES_PER_PULL, networkTimeouts, serverTime: Date.now() });
+  const state = () => ({
+    type: 'snapshot', jobs: store.jobs().map(job => ({
+      ...job,
+      ...(job.status === 'completed' ? { download_url: `/api/pulls/${encodeURIComponent(job.id)}/trades` } : {})
+    })), delayMs,
+    connectionLimitMs, wsLifetimeMs, totalTrades: TRADES_PER_PULL, networkTimeouts, serverTime: Date.now()
+  });
   const snapshot = () => ({ ...state(), trades: store.trades() });
-  const jobEvent = job => ({ type: 'job', job_id: job.id, status: job.status === 'running' ? 'processing' : job.status,
+  const jobEvent = job => ({
+    type: 'job', job_id: job.id, status: job.status === 'running' ? 'processing' : job.status,
     ...(job.status === 'completed' ? { download_url: `/api/pulls/${encodeURIComponent(job.id)}/trades`, imported: job.imported } : {}),
-    ...(job.error ? { error: job.error } : {}) });
+    ...(job.error ? { error: job.error } : {})
+  });
   function notifyJob(id) {
     const event = JSON.stringify(jobEvent(store.job(id)));
     for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN && (!ws.jobId || ws.jobId === id)) ws.send(event);
@@ -57,8 +63,10 @@ export async function createApp({ port = 3000, dbPath = ':memory:', mockUrl, sec
   }
   async function dispatch(id) {
     try {
-      const response = await fetch(`${mockUrl}/jobs`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: id }), signal: AbortSignal.timeout(connectionLimitMs) });
+      const response = await fetch(`${mockUrl}/jobs`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: id }), signal: AbortSignal.timeout(connectionLimitMs)
+      });
       if (![200, 202].includes(response.status)) throw new Error(`Exchange returned ${response.status}`);
       const data = await response.json();
       if (data.jobId !== id) throw new Error('Exchange job ID mismatch');
@@ -146,8 +154,10 @@ export async function createApp({ port = 3000, dbPath = ':memory:', mockUrl, sec
       if (req.method === 'GET' && files[url.pathname]) {
         const [name, contentType] = files[url.pathname];
         const data = await readFile(fileURLToPath(new URL(`../public/${name}`, import.meta.url)));
-        res.writeHead(200, { 'Content-Type': `${contentType}; charset=utf-8`, 'Cache-Control': 'no-cache',
-          'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; script-src 'self'; img-src 'self'; frame-ancestors 'none'" });
+        res.writeHead(200, {
+          'Content-Type': `${contentType}; charset=utf-8`, 'Cache-Control': 'no-cache',
+          'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self'; script-src 'self'; img-src 'self'; frame-ancestors 'none'"
+        });
         return res.end(data);
       }
       json(res, 404, { error: 'Not found' });
@@ -187,14 +197,16 @@ export async function createApp({ port = 3000, dbPath = ':memory:', mockUrl, sec
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });
   const active = store.active();
   if (active) { armDeadline(active); void dispatch(active.id); }
-  return { server, store, port: server.address().port, close: async () => {
-    stopping = true;
-    for (const deadline of deadlines.values()) clearTimeout(deadline);
-    for (const upstream of upstreamRequests) upstream.destroy();
-    for (const ws of wss.clients) ws.terminate();
-    server.closeAllConnections();
-    await new Promise(resolve => wss.close(resolve));
-    await new Promise(resolve => server.close(resolve));
-    store.close();
-  } };
+  return {
+    server, store, port: server.address().port, close: async () => {
+      stopping = true;
+      for (const deadline of deadlines.values()) clearTimeout(deadline);
+      for (const upstream of upstreamRequests) upstream.destroy();
+      for (const ws of wss.clients) ws.terminate();
+      server.closeAllConnections();
+      await new Promise(resolve => wss.close(resolve));
+      await new Promise(resolve => server.close(resolve));
+      store.close();
+    }
+  };
 }
