@@ -27,8 +27,9 @@ try {
   await page.locator('#timeout-result').filter({ hasText: 'connection failed' }).waitFor({ timeout: 35000 });
   await page.locator('#network-event').filter({ hasText: 'socket killed' }).waitFor();
   await page.screenshot({ path: 'artifacts/dashboard-timeout.png', fullPage: true });
-  await page.locator('#trade-rows tr').first().waitFor({ timeout: 20000 });
-  assert.equal(await page.locator('#pull-button').isDisabled(), true);
+  assert.equal(await page.locator('#trade-rows tr').count(), 0);
+  await page.locator('#trade-rows tr').first().waitFor({ timeout: ASSESSMENT_PULL_MS + 60000 });
+  assert.equal(await page.locator('#pull-button').isDisabled(), false);
   await page.getByRole('searchbox').fill('TCS');
   assert.ok((await page.locator('#trade-rows tr').count()) > 0);
   assert.ok((await page.locator('#trade-rows').innerText()).includes('TCS'));
@@ -37,7 +38,7 @@ try {
   await page.getByRole('searchbox').fill('');
   await page.getByRole('button', { name: 'Pull latest trades' }).waitFor({ timeout: ASSESSMENT_PULL_MS + 60000 });
   assert.equal(await page.locator('#total-trades').innerText(), '2,000');
-  assert.equal(requests.length, 2, 'Only the two user actions; no HTTP polling');
+  assert.equal(requests.length, 4, 'Initial cache, POST, direct timeout test, completed download; no polling');
   assert.ok(sockets.length >= 36, 'WebSocket renewed throughout the full 15-minute pull');
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export CSV' }).click();

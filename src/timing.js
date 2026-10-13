@@ -4,7 +4,6 @@ export const ASSESSMENT_PULL_MS = 15 * 60 * 1000;
 export const NETWORK_CONNECTION_LIMIT_MS = 30 * 1000;
 export const LIVE_RENEWAL_MS = 25 * 1000;
 export const TRADES_PER_PULL = 2000;
-export const TRADES_PER_BATCH = 100;
 
 export function runtimeTiming(env = process.env) {
   return {

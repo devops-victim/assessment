@@ -40,10 +40,12 @@ def base(kicker, title, subtitle):
     return image, draw
 
 fps = 12
-writer = cv2.VideoWriter(str(ART / 'walkthrough.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, (1600, 900))
-if not writer.isOpened(): raise RuntimeError('MP4 video encoder is unavailable')
 if capture['delayMs'] != 900000 or capture['connectionLimitMs'] != 30000:
     raise RuntimeError('Record the full 15-minute/30-second assessment before rendering the submission video.')
+if capture.get('approach') != 'B':
+    raise RuntimeError('Record the current Approach B protocol before rendering; prior prototype recordings are not current evidence.')
+writer = cv2.VideoWriter(str(ART / 'walkthrough.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, (1600, 900))
+if not writer.isOpened(): raise RuntimeError('MP4 video encoder is unavailable')
 completed_seconds = capture['completedElapsedMs'] / 1000 + 1
 live_length = 74
 duration = 12 + live_length + 12
@@ -51,14 +53,14 @@ for frame in range(duration * fps):
     at = frame / fps
     if at < 12:
         im, d = base('01 / THE DESIGN', 'A 15-minute pull. A 30-second connection limit.', 'Accept the request, save the result, then push the update.')
-        boxes = [(65, 340, 390, 505, 'Dashboard', 'Saved trades instantly'), (470, 340, 795, 505, 'App + SQLite', 'Durable jobs & trades'), (880, 340, 1535, 505, 'Mock BSE exchange', 'Slow GET fails at 30s; async work lasts 900s')]
+        boxes = [(65, 340, 390, 505, 'Dashboard', 'Empty until download'), (470, 340, 795, 505, 'App + SQLite', 'Job ID + ready report'), (880, 340, 1535, 505, 'Mock BSE exchange', 'POST accepts now; report completes after 900s')]
         for x1, y1, x2, y2, heading, caption in boxes:
             d.rounded_rectangle((x1,y1,x2,y2), 16, fill='#ffffff', outline='#e4e4f0', width=2)
             draw_text(d, (x1+22, y1+29), heading, 28, bold=True)
             draw_text(d, (x1+22, y1+92), caption, 20, '#8b8f9f')
         draw_text(d, (402, 395), '->', 28, '#6658d9', mono=True)
         draw_text(d, (811, 395), '->', 28, '#6658d9', mono=True)
-        draw_text(d, (75, 567), 'When ready: signed webhook -> GET ready batch -> atomic commit -> WebSocket push', 27, '#6658d9', bold=True)
+        draw_text(d, (75, 567), 'POST 202 -> job subscription -> completed + download_url -> HTTP download', 27, '#6658d9', bold=True)
         draw_text(d, (75, 637), 'Direct GET: actual socket reset at 30s. Background pull: completion after 15 minutes.', 26, '#71778a')
         draw_text(d, (75, 694), 'Recorded real wall time: no shortened demo, no mocked timers, no fabricated timeout.', 24, '#8b8f9f')
         draw_text(d, (75, 747), 'The mock supports an async handshake; a fixed synchronous API needs an upstream change.', 21, '#8b8f9f')
@@ -76,14 +78,14 @@ for frame in range(duration * fps):
             draw_text(d, (570, y), e['detail'], 18, '#aeb8ca', mono=True)
         d.rounded_rectangle((55, 737, 1545, 775), 9, fill='#e7e3f4')
         d.rounded_rectangle((55, 737, 55 + int(1490 * min(1, elapsed / 900)), 775), 9, fill='#8b7fd9')
-        label = '900 seconds elapsed: all 2,000 trades received. No refresh or polling.' if elapsed >= capture['completedElapsedMs']/1000 else ('Real batches arrive progressively; the full 15-minute pull continues.' if elapsed >= capture.get('firstBatchElapsedMs', 45000)/1000 else ('30s timeout observed. Initially empty table awaits the first real batch at 45s.' if elapsed >= capture['directElapsedMs']/1000 + .1 else 'Initially empty dashboard. The direct synchronous GET is still waiting.'))
+        label = 'Report completed: small WebSocket notification, then one HTTP download of 2,000 trades.' if elapsed >= capture['completedElapsedMs']/1000 else ('30s timeout observed. The durable 15-minute job keeps processing; no partial data.' if elapsed >= capture['directElapsedMs']/1000 + .1 else 'Initial table empty. The job subscription is waiting for completion metadata.')
         draw_text(d, (65, 786), label, 21, '#6c618e', bold=True)
     else:
         im, d = base('03 / RUN & REVIEW', 'One repository. Two HTTP services. Persistent state.', 'Normal startup always uses at least 15 minutes. The 30-second network cap is enforced.')
         for i, line in enumerate(['npm ci', 'npm start            # actual 15-minute pull', 'npm run test:assessment  # full-duration timing proof', 'npm test             # backend + DOM integration checks']):
             draw_text(d, (80, 335 + i*62), line, 28, '#6256b7', mono=True)
         draw_text(d, (80, 625), 'Click Pull latest trades, then Run 30-second timeout test on the dashboard.', 27, '#626b7d')
-        draw_text(d, (80, 686), 'New trades appear automatically in every open tab after the batch is committed.', 25, '#818697')
+        draw_text(d, (80, 686), 'Wait for the completed event; the browser then downloads and renders the report.', 25, '#818697')
         draw_text(d, (80, 748), 'README.md: setup   |   docs/ARCHITECTURE.md: design & limitations', 24, '#9498a7')
     writer.write(cv2.cvtColor(np.asarray(im), cv2.COLOR_RGB2BGR))
 writer.release()

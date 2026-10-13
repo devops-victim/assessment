@@ -60,7 +60,7 @@ test('slow synchronous GET is cut off by the actual network while async work sur
     ws = new WebSocket(s.url.replace('http:', 'ws:') + '/live');
     ws.on('message', raw => {
       const data = JSON.parse(raw.toString());
-      if (data.jobs[0]?.status === 'completed') { stopping = true; resolveCompleted(data); }
+      if (data.type === 'snapshot' && data.jobs[0]?.status === 'completed') { stopping = true; resolveCompleted(data); }
     });
     ws.on('close', () => { if (!stopping) connect(); });
     ws.on('error', error => rejectCompleted(error));
@@ -77,7 +77,8 @@ test('slow synchronous GET is cut off by the actual network while async work sur
   assert.ok(performance.now() - began >= 210);
   assert.equal(s.app.store.active().status, 'running');
   const snapshot = await completed;
-  assert.equal(snapshot.trades.length, 2000);
+  assert.equal(s.app.store.trades().length, 2000);
+  assert.equal('trades' in snapshot, false);
   assert.ok(snapshot.networkTimeouts.some(e => e.path === '/api/direct-pull' && e.elapsedMs >= 210));
 });
 
@@ -85,7 +86,7 @@ test('hard network lifetime also kills an upgraded socket if it is not renewed',
   const s = await system({ connectionLimitMs: 250, wsLifetimeMs: 1000 }); t.after(() => s.close());
   const ws = new WebSocket(s.url.replace('http:', 'ws:') + '/live'); t.after(() => ws.terminate());
   const closed = new Promise(resolve => ws.once('close', code => resolve(code)));
-  await waitSnapshot(ws, d => d.trades.length === 0);
+  await waitSnapshot(ws, d => d.jobs.length === 0);
   assert.equal(await closed, 1006, 'Network must reset the socket, not simulate a graceful renewal');
   const snapshot = await (await fetch(s.url + '/api/trades')).json();
   assert.ok(snapshot.networkTimeouts.some(e => e.kind === 'WebSocket' && e.path === '/live'));

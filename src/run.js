@@ -11,7 +11,7 @@ if (existsSync('.env')) process.loadEnvFile('.env');
 const port = integerEnv(process.env.PORT, 3000, 'PORT', 1, 65535);
 const mockPort = integerEnv(process.env.MOCK_PORT, 4100, 'MOCK_PORT', 1, 65535);
 const { delayMs, connectionLimitMs, wsLifetimeMs } = runtimeTiming();
-const dir = resolve(process.env.DATA_DIR || './data/progressive');
+const dir = resolve(process.env.DATA_DIR || './data/jobs');
 await mkdir(dir, { recursive: true });
 let secret = process.env.CALLBACK_SECRET;
 if (!secret) {

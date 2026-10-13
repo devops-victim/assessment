@@ -4,7 +4,7 @@ export const symbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'ITC
 const prices = [2941, 4120, 1682, 1870, 1264, 486, 3540, 811];
 const clients = ['Arham Capital', 'Meridian Securities', 'Northstar Fund', 'Pioneer Investments', 'Atlas Trading', 'Summit Partners'];
 
-export function seededTrades(batch = 0, count = 2000, baseTime = '2026-10-13T04:30:00.000Z') {
+export function seededTrades(batch = 0, count = 2000, baseTime = '2026-10-13T04:30:00.000Z', timeStepMs = 1000) {
   let seed = 20261013 + batch * 7919;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   return Array.from({ length: count }, (_, i) => {
@@ -15,7 +15,7 @@ export function seededTrades(batch = 0, count = 2000, baseTime = '2026-10-13T04:
       symbol: symbols[s],
       quantity: (Math.floor(random() * 100) + 1) * 10,
       price: Math.round(prices[s] * (0.98 + random() * 0.04) * 100) / 100,
-      timestamp: new Date(Date.parse(baseTime) + i * 1000).toISOString()
+      timestamp: new Date(Date.parse(baseTime) + Math.floor(i * timeStepMs)).toISOString()
     };
   });
 }

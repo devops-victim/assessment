@@ -2,11 +2,12 @@ const $ = id => document.getElementById(id);
 const format = new Intl.NumberFormat('en-IN');
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
 const time = value => new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-let trades = [], jobs = [], delayMs = 900000, page = 1, knownCompleted = new Set(), loaded = false;
+let trades = [], jobs = [], delayMs = 900000, page = 1;
 let ws, reconnectTimer, retry = 0, sending = false, toastTimer, clockOffset = 0, unloading = false;
 let connectionLimitMs = 30000, wsLifetimeMs = 25000, connectedAt = 0, renewals = 0;
 let timeoutTestStartedAt = 0, timeoutTestRunning = false;
-let totalTrades = 2000, batchSize = 100;
+let totalTrades = 2000, subscribedJobId = null, lastState;
+const downloadedJobs = new Set(), downloadsInFlight = new Set();
 const pageSize = 10;
 $('today').textContent = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 function text(id, value) { $(id).textContent = value; }
@@ -43,7 +44,7 @@ function renderTable() {
   text('page-info', list.length ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, list.length)} of ${format.format(list.length)} trades` : '0 trades');
   text('page-number', `${page} / ${pages}`);
   $('empty-state').hidden = list.length !== 0;
-  text('empty-state', trades.length === 0 ? (active() ? 'Pull in progress. Waiting for the first batch of trades…' : 'No trades yet. Start a pull to stream exchange trades here.') : 'No trades match your filters.');
+  text('empty-state', trades.length === 0 ? (active() ? 'Generating the report. Trades will appear after completion and download.' : 'No trades yet. Start a pull to generate your first report.') : 'No trades match your filters.');
   $('export-button').disabled = list.length === 0;
   $('prev').disabled = page <= 1; $('next').disabled = page >= pages;
 }
@@ -60,7 +61,7 @@ function renderActivity() {
     const content = document.createElement('div'); content.className = 'activity-text';
     const title = document.createElement('strong');
     title.textContent = job.status === 'running' ? 'Pull in progress' : job.status === 'failed' ? 'Pull failed' : 'Pull completed';
-    const detail = document.createElement('p'); detail.textContent = job.status === 'running' ? `${format.format(job.imported)} / ${format.format(totalTrades)} trades received` : job.status === 'failed' ? `${format.format(job.imported)} received trades remain saved` : `${format.format(job.imported)} trades imported`;
+    const detail = document.createElement('p'); detail.textContent = job.status === 'running' ? 'Generating report in the background' : job.status === 'failed' ? 'Existing saved trades remain available' : `${format.format(job.imported)} trades ready to download`;
     const at = document.createElement('small'); at.textContent = `${time(job.completedAt || job.startedAt)} IST · ${job.id.slice(0, 8)}`;
     if (job.error) detail.title = job.error;
     content.append(title, detail, at); row.append(marker, content); return row;
@@ -75,8 +76,9 @@ function renderPullStatus() {
   $('pull-button').disabled = !!running || sending;
   text('pull-button-label', running ? 'Pull in progress' : sending ? 'Starting pull…' : 'Pull latest trades');
   text('banner-icon', running ? '↻' : failed ? '!' : '✓');
-  text('pull-title', running ? `Pulling trades — ${format.format(running.imported)} of ${format.format(totalTrades)} received` : failed ? 'The last pull could not complete' : latest ? 'All caught up. Your latest trades are here.' : trades.length ? 'Your saved trades are ready' : 'Start your first exchange pull');
-  text('pull-description', running ? `Trades appear as each batch arrives. The full pull takes ${duration(currentPullDuration())}; you can explore received trades now.` : failed ? latest.error : `Stream ${format.format(totalTrades)} trades over ${duration(delayMs)}. The network cutoff is ${connectionLimitMs / 1000} seconds.`);
+  const awaitingDownload = latest?.status === 'completed' && !downloadedJobs.has(latest.id);
+  text('pull-title', running ? 'Generating your trade report in the background' : failed ? 'The last pull could not complete' : awaitingDownload ? 'Report completed. Downloading trades…' : latest ? 'All caught up. Your latest trades are here.' : trades.length ? 'Your saved trades are ready' : 'Start your first exchange pull');
+  text('pull-description', running ? `Job ${running.id.slice(0, 8)} takes ${duration(currentPullDuration())}. A WebSocket notification will trigger the HTTP download when ready.` : failed ? latest.error : `Generate ${format.format(totalTrades)} trades in ${duration(delayMs)}. Existing trades stay available while the job runs.`);
   text('pull-pill', running ? 'PULLING' : failed ? 'FAILED' : latest ? 'SYNCED' : 'READY');
   updateClock();
 }
@@ -101,13 +103,13 @@ function updateClock() {
   $('progress').style.width = `${Math.min(95, elapsed / Math.max(1, pullDuration) * 100)}%`;
 }
 function applySnapshot(data) {
-  const previousCount = trades.length;
-  trades = data.trades; jobs = data.jobs; delayMs = data.delayMs;
-  totalTrades = data.totalTrades; batchSize = data.batchSize;
+  lastState = data;
+  trades = data.trades ?? trades; jobs = data.jobs; delayMs = data.delayMs;
+  totalTrades = data.totalTrades;
   connectionLimitMs = data.connectionLimitMs; wsLifetimeMs = data.wsLifetimeMs;
   clockOffset = data.serverTime - Date.now();
   text('configured-duration', duration(currentPullDuration()));
-  text('batch-cadence', `${batchSize} trades arrive every ${currentPullDuration() / (totalTrades / batchSize) / 1000} seconds`);
+  text('batch-cadence', 'Job completed event → one HTTP download');
   text('network-limit', `${connectionLimitMs / 1000} seconds`);
   const cutoff = data.networkTimeouts[0];
   if (cutoff) {
@@ -115,9 +117,6 @@ function applySnapshot(data) {
     $('network-event').hidden = false;
   }
   const completed = jobs.filter(j => j.status === 'completed');
-  if (loaded) for (const job of completed) if (!knownCompleted.has(job.id)) toast(`${format.format(job.imported)} new trades imported. You're up to date.`);
-  if (loaded && active() && trades.length > previousCount) toast(`${format.format(trades.length - previousCount)} trades received. Pull is still running.`);
-  knownCompleted = new Set(completed.map(j => j.id)); loaded = true;
   text('total-trades', format.format(trades.length));
   const total = trades.reduce((sum, t) => sum + t.quantity * t.price, 0);
   text('traded-value', `₹${(total / 10000000).toFixed(2)} Cr`);
@@ -134,21 +133,56 @@ function applySnapshot(data) {
   }));
   $('symbol-filter').value = selection;
   renderTable(); renderActivity(); renderPullStatus();
+  // Replay completed metadata from a renewed subscription to recover any result
+  // missed while switching job channels. Each job downloads at most once.
+  for (const job of completed) if (job.download_url && !downloadedJobs.has(job.id)) {
+    void downloadCompletedJob({ job_id: job.id, download_url: job.download_url });
+  }
+}
+function subscribeToJob(id) {
+  if (subscribedJobId === id && ws && ws.readyState <= WebSocket.OPEN) return;
+  subscribedJobId = id;
+  const old = ws; ws = null; old?.close(); connect();
+}
+async function downloadCompletedJob(event) {
+  if (downloadedJobs.has(event.job_id) || downloadsInFlight.has(event.job_id)) return;
+  downloadsInFlight.add(event.job_id); renderPullStatus();
+  try {
+    const expectedUrl = `/api/pulls/${encodeURIComponent(event.job_id)}/trades`;
+    if (event.download_url !== expectedUrl) throw new Error('Invalid download URL');
+    const response = await fetch(event.download_url, { signal: AbortSignal.timeout(connectionLimitMs) });
+    const result = await response.json();
+    if (!response.ok || result.job_id !== event.job_id || !Array.isArray(result.trades)) throw new Error(result.error || 'Could not download completed report');
+    const merged = new Map(trades.map(t => [t.tradeId, t]));
+    for (const trade of result.trades) merged.set(trade.tradeId, trade);
+    downloadedJobs.add(event.job_id);
+    applySnapshot({ ...lastState, serverTime: Date.now() + clockOffset,
+      trades: [...merged.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp) || b.tradeId.localeCompare(a.tradeId)) });
+    toast(`${format.format(result.trades.length)} trades downloaded. You're up to date.`);
+  } catch (error) { text('error', `Report download failed: ${error.message}`); $('error').hidden = false; }
+  finally { downloadsInFlight.delete(event.job_id); renderPullStatus(); }
 }
 function connect() {
   if (unloading) return;
   clearTimeout(reconnectTimer);
-  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/live`);
-  ws.addEventListener('open', () => {
+  const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/live${subscribedJobId ? '?job_id=' + encodeURIComponent(subscribedJobId) : ''}`);
+  ws = socket;
+  socket.addEventListener('open', () => {
+    if (socket !== ws) return;
     connectedAt = Date.now();
     retry = 0; $('connection').classList.remove('offline'); text('connection-label', 'Live connection');
     $('error').hidden = true;
   });
-  ws.addEventListener('message', event => {
+  socket.addEventListener('message', event => {
+    if (socket !== ws) return;
     const data = JSON.parse(event.data);
-    if (data.type === 'snapshot') applySnapshot(data);
+    if (data.type === 'snapshot') {
+      applySnapshot(data);
+      if (active() && active().id !== subscribedJobId) subscribeToJob(active().id);
+    } else if (data.type === 'job' && data.status === 'completed') void downloadCompletedJob(data);
   });
-  ws.addEventListener('close', event => {
+  socket.addEventListener('close', event => {
+    if (socket !== ws) return;
     if (unloading) return;
     connectedAt = 0;
     if (event.code === 4000) renewals++;
@@ -157,7 +191,7 @@ function connect() {
     const wait = event.code === 4000 ? 0 : Math.min(500 * 2 ** retry++, 10000) + Math.random() * 250;
     reconnectTimer = setTimeout(connect, wait);
   });
-  ws.addEventListener('error', () => ws.close());
+  socket.addEventListener('error', () => socket.close());
 }
 $('pull-button').addEventListener('click', async () => {
   sending = true; renderPullStatus(); $('error').hidden = true;
@@ -166,6 +200,7 @@ $('pull-button').addEventListener('click', async () => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not start pull');
     if (!jobs.some(j => j.id === data.job.id)) jobs.unshift(data.job);
+    subscribeToJob(data.job_id);
     renderActivity();
     toast(data.alreadyRunning ? 'A pull is already running in this workspace.' : 'Pull started. You can keep using the dashboard.');
   } catch (error) { text('error', `Could not start the pull: ${error.message}`); $('error').hidden = false; }
@@ -204,4 +239,16 @@ $('export-button').addEventListener('click', () => {
 // This timer only paints local elapsed time; it never requests data.
 setInterval(updateClock, 1000);
 window.addEventListener('beforeunload', () => { unloading = true; clearTimeout(reconnectTimer); ws?.close(); });
-connect();
+async function initialize() {
+  try {
+    // One initial cache read, never a polling loop.
+    const response = await fetch('/api/trades', { signal: AbortSignal.timeout(connectionLimitMs) });
+    if (!response.ok) throw new Error('Could not load saved trades');
+    const data = await response.json();
+    for (const job of data.jobs) if (job.status === 'completed') downloadedJobs.add(job.id);
+    applySnapshot(data);
+    subscribedJobId = active()?.id ?? null;
+  } catch (error) { text('error', error.message); $('error').hidden = false; }
+  connect();
+}
+void initialize();

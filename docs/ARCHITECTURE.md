@@ -1,82 +1,52 @@
-# Architecture: 15-minute work across a 30-second network limit
-
-## Original failure, reproduced
+# Approach B: accept a job, notify completion, download over HTTP
 
 ```mermaid
 sequenceDiagram
-    participant UI as Timeout test
-    participant App as Dashboard proxy
-    participant BSE as Mock BSE GET /getTrades
-    UI->>App: GET /api/direct-pull
-    App->>BSE: Synchronous GET /getTrades
-    Note over BSE: Seeded batch needs 900 seconds of work
-    Note over UI,BSE: Hard connection lifetime: 30 seconds
-    App--xUI: Actual socket reset at 30s
-    BSE--xApp: Actual socket reset at 30s
-    Note over UI: Show observed failure and server timeout event
-```
-
-This is a real connection teardown, not a fake JSON timeout or a shorter browser timer. Both HTTP servers attach a lifetime deadline to every accepted socket. The deadline destroys that socket even when it is waiting for a response or has been upgraded to WebSocket. Request/idle timeouts alone do not enforce this condition.
-
-## Working asynchronous flow
-
-```mermaid
-sequenceDiagram
-    participant UI as Open dashboards
+    participant UI as Dashboard
     participant App as Dashboard API
     participant DB as SQLite
-    participant BSE as Mock BSE async extension
-    UI->>App: WebSocket /live
-    App->>DB: Read prior trades and jobs
-    App-->>UI: Saved snapshot immediately
+    participant BSE as Mock exchange
+    UI->>App: GET /api/trades (once on load)
+    App-->>UI: Empty first time; cached reports on later visits
     UI->>App: POST /api/pulls
     App->>DB: Persist running job
-    App-->>UI: 202 Accepted
-    App->>BSE: GET /getTrades?mode=async&jobId=...
-    BSE->>BSE: Persist readiness time = now + 900 seconds
-    BSE-->>App: 202 Accepted, connection ends
-    Note over BSE: Full 15-minute work delay; no held HTTP request
-    loop Transport renewal during the pull
-        Note over UI,App: Close live socket at 25s, before the 30s hard cap
-        UI->>App: Reconnect live subscription
-        App-->>UI: Authoritative saved snapshot
-    end
-    BSE->>App: Signed ready callback after 900 seconds
-    App->>BSE: GET /getTrades?jobId=... (ready batch, once)
-    BSE-->>App: 200 with seeded trades
-    App->>DB: Transaction: insert unique trades, complete job
-    DB-->>App: Commit
-    App-->>UI: Push completed snapshot automatically
-    App-->>BSE: Acknowledge callback
+    App-->>UI: 202 Accepted + job_id + websocket_url
+    UI->>App: WS /live?job_id=...
+    App-->>UI: Processing metadata (no rows)
+    App->>BSE: POST /jobs with same job_id
+    BSE-->>App: 202 Accepted
+    Note over BSE: Full 900-second report generation; no held HTTP request
+    Note over UI,App: Logical job subscription renews at 25s before the 30s hard cap
+    BSE->>App: Signed ready callback
+    App->>BSE: GET /getTrades?jobId=... (once after ready)
+    BSE-->>App: Completed report
+    App->>DB: Atomic report import + job completion + associations
+    App-->>UI: WS {status: completed, download_url: ...}
+    UI->>App: GET download_url (once)
+    App-->>UI: This job's trade report
+    Note over UI: Render automatically, no page refresh or polling
 ```
 
-## Why this design
+The browser never owns the long-running work. Accepting the job is a short HTTP request, and a durable job ID survives browser closure, connection renewal or backend restart. The first dashboard has zero records. Completed reports persist and remain available while subsequent jobs are processing. No partial records or fabricated startup snapshot are shown.
 
-Work lifetime and connection lifetime are independent. The browser never owns the import. A saved snapshot is immediately available, and a durable job survives tab closure or process restart. SQLite avoids additional infrastructure for an assessment, supplies unique trade IDs, and atomically commits the imported batch with the job's completion status. A partial unique index permits only one active pull, even with simultaneous triggers.
+WebSockets carry small job/connection metadata. Completion is announced only after the completed report and its job-to-trade association commit atomically. The download route returns exactly that job's records, not all historical dashboard trades. The browser merges by trade ID and records successful downloads to suppress duplicate GETs when completion notifications replay.
 
-The exchange stores the actual readiness time. Its one-shot delay cannot publish a pending batch before that timestamp. Restart recovery arms the remaining delay from the stored readiness time; it does not repeat a full 15 minutes or shorten the original job. The app re-dispatches its running job using the same ID; already ready jobs are returned immediately.
+A job-specific subscription receives that job's explicit events. Compact workspace metadata lets another open tab discover a newly started job and subscribe to it. Durable completed metadata on reconnect covers a completion missed during a disconnect or channel change. One initial cache GET and completion-driven report GETs are not a polling loop.
 
-The callback is signed with HMAC. On readiness, the app performs one completed-data GET, commits, then pushes. Failed callback delivery uses bounded retries. A one-shot job deadline marks missing completion as a failure while preserving saved trades. No periodic scheduler scans for work or starts imports.
+## Connection and work lifetimes
 
-WebSocket is an event subscription, not a status polling loop. Renewing it at 25 seconds avoids the enforced 30-second network reset. Fresh authoritative snapshots on reconnect cover a completion missed during a disconnect. Local elapsed-time counters request no data. Full snapshots are reasonable for a few thousand records; larger systems should use pagination, versioned deltas and resumable event cursors.
+The application reproduces the original synchronous failure with a real slow GET. A hard timer attached to each accepted socket destroys it after 30 seconds, even when it is waiting for a response. The UI shows the observed network timeout and the terminal records its actual lifetime. A response timeout setting alone would not reproduce this network condition.
 
-## Explicit upstream assumption
+This conservative simulation also caps upgraded WebSocket sockets. Therefore, the physical socket renews at 25 seconds while the logical job subscription remains active for the full 15 minutes. If an actual network exempts upgraded WebSockets, one long-lived socket can be used; that exemption is not assumed here. HTTP download occurs only after report generation, so the transfer itself is short for the assessment's few thousand records.
 
-The literal synchronous API is retained and **fails** under the stated network restriction. The mock additionally implements `mode=async` and a ready callback to provide a viable interface for the working solution. This is an explicit exchange capability added by the mock, not an undocumented assertion about the real BSE API.
+The mock persists an absolute readiness time and uses one requested-job timer. It never publishes a report before that time. Startup recovery restores the remaining delay, and idempotent `POST /jobs` requests use the original job ID. Ready callbacks are HMAC-signed, time-bounded and retried up to six times. The dashboard's job deadline reports missing completion while preserving existing saved reports. No cron job, periodic database scan or automatic pull scheduler is present.
 
-If a real exchange only exposes a synchronous 15-minute HTTP response and every available upstream path always kills that connection after 30 seconds, no client-side architecture can successfully consume that response. An asynchronous exchange export/push capability or a worker outside the restricted network is necessary. Placing the same synchronous GET in a worker on the same network would still fail at 30 seconds.
+## Upstream assumption
 
-## Observability and verification
+The mock explicitly adds `POST /jobs` and a ready callback. It retains the original synchronous `GET /getTrades`, which fails over the restricted path, and serves the completed report by that GET once ready. This async capability is not a claim about the real BSE API. If an upstream offers only an immutable 15-minute synchronous response and all upstream paths die after 30 seconds, a different upstream interface or a worker outside that network limit is required.
 
-The dashboard displays the actual configured work duration, network limit, elapsed pull time, live connection age/renewal count, direct request countdown and observed timeout. A server-generated timeout event includes the route, connection kind, actual socket lifetime and timestamp. The terminal prints the same event.
+## Scope and verification
 
-Normal startup defaults to 900,000 ms of work, rejects smaller values, and fixes the network limit at 30,000 ms. `npm run demo` no longer shortens time. Longer configured durations are shown truthfully. Fast tests shorten only isolated factory timings; `npm run test:assessment` uses the full real wall-clock delays and records the 30-second failure and 900-second completion.
+SQLite and two logical HTTP services in one local Node process keep setup simple. A partial unique index prevents concurrent duplicate jobs; primary-key deduplication and transactions prevent repeated callbacks from duplicating imports. A larger deployment would add a shared database, durable queue, event fanout, authentication, TLS and object storage/range downloads for large files.
 
-## Scope
-
-- Two logical HTTP services run in one local process; both bind to loopback. Public deployment would require authentication, TLS, rate limits and configured allowed origins.
-- A production multi-instance system would use a shared database, durable queue and event fanout while retaining the same acceptance, readiness, commit and push boundaries.
-- HTTP calls have 30-second client bounds in addition to the actual socket cap. Requests on the working path finish quickly and never wait for exchange work.
-- Prices and clients are fictional seed data. Production monetary calculations should use decimal values or integer minor units.
-- Saved trades and job history persist. Recent-job UI history is bounded; timeout observations are bounded process-local diagnostics.
-- Browser rendering is blocked by Windows IPC restrictions in this development sandbox. DOM tests run the actual frontend scripts; the included full-duration Playwright check is available for visual QA outside the sandbox.
+Both services bind to loopback. Seeded exchange trades are fictional. Monetary production code should use decimals or integer minor units. Tests exercise the full browser protocol through real frontend scripts, including one completion-triggered download in each of two open dashboards. The full-duration script verifies 900-second generation, 30-second socket reset, metadata-only WebSockets and HTTP delivery. Chrome visual QA is blocked by sandbox IPC restrictions and remains reproducible through the included Playwright script.

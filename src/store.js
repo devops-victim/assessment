@@ -13,7 +13,8 @@ export function openStore(path) {
       completedAt TEXT, imported INTEGER NOT NULL DEFAULT 0, error TEXT,
       delayMs INTEGER NOT NULL DEFAULT 900000, readyAt TEXT
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS one_active_pull ON jobs(status) WHERE status='running';`);
+    CREATE UNIQUE INDEX IF NOT EXISTS one_active_pull ON jobs(status) WHERE status='running';
+    CREATE TABLE IF NOT EXISTS job_trades (jobId TEXT NOT NULL, tradeId TEXT NOT NULL, PRIMARY KEY(jobId,tradeId));`);
   const columns = db.prepare('PRAGMA table_info(jobs)').all();
   if (!columns.some(column => column.name === 'delayMs')) {
     db.exec("ALTER TABLE jobs ADD COLUMN delayMs INTEGER; UPDATE jobs SET delayMs=900000 WHERE status='running'");
@@ -27,14 +28,16 @@ export function openStore(path) {
   };
   // Remove only the old artificial startup snapshot. Actual pulled trades remain.
   db.prepare("DELETE FROM trades WHERE tradeId LIKE 'BSE-0000-%'").run();
-  const applyBatch = (id, trades, complete = false) => {
+  const complete = (id, trades) => {
     const job = db.prepare('SELECT * FROM jobs WHERE id=?').get(id);
     if (!job || job.status !== 'running') return 0;
     db.exec('BEGIN IMMEDIATE');
     try {
       const count = addTrades(trades);
+      const link = db.prepare('INSERT INTO job_trades VALUES (?,?) ON CONFLICT(jobId,tradeId) DO NOTHING');
+      for (const trade of trades) link.run(id, trade.tradeId);
       db.prepare('UPDATE jobs SET status=?,completedAt=?,imported=imported+? WHERE id=?')
-        .run(complete ? 'completed' : 'running', complete ? new Date().toISOString() : null, count, id);
+        .run('completed', new Date().toISOString(), count, id);
       db.exec('COMMIT');
       return count;
     } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -42,14 +45,14 @@ export function openStore(path) {
   return {
     db,
     trades: () => db.prepare('SELECT * FROM trades ORDER BY timestamp DESC, tradeId DESC').all(),
+    jobTrades: id => db.prepare('SELECT t.* FROM trades t JOIN job_trades j ON j.tradeId=t.tradeId WHERE j.jobId=? ORDER BY t.timestamp DESC,t.tradeId DESC').all(id),
     jobs: () => db.prepare('SELECT * FROM jobs ORDER BY startedAt DESC, rowid DESC LIMIT 8').all(),
     active: () => db.prepare("SELECT * FROM jobs WHERE status='running'").get(),
     job: (id) => db.prepare('SELECT * FROM jobs WHERE id=?').get(id),
     start: (id, delayMs = ASSESSMENT_PULL_MS) => { db.prepare("INSERT INTO jobs (id,status,startedAt,delayMs) VALUES (?,'running',?,?)").run(id, new Date().toISOString(), delayMs); },
     setReadiness: (id, readyAt, delayMs) => db.prepare("UPDATE jobs SET readyAt=?,delayMs=? WHERE id=? AND status='running'").run(readyAt, delayMs, id),
     fail: (id, error) => db.prepare("UPDATE jobs SET status='failed',completedAt=?,error=? WHERE id=? AND status='running'").run(new Date().toISOString(), error, id),
-    applyBatch,
-    complete: (id, trades) => applyBatch(id, trades, true),
+    complete,
     close: () => db.close()
   };
 }

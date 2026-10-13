@@ -1,584 +1,592 @@
 {
+  "approach": "B",
   "delayMs": 900000,
   "connectionLimitMs": 30000,
-  "completedElapsedMs": 900173.1033000001,
-  "directElapsedMs": 30030.7985,
+  "completedElapsedMs": 900110.0122,
+  "downloadElapsedMs": 30.570999999996275,
+  "directElapsedMs": 30009.5288,
   "connectionCount": 36,
+  "initialTradeCount": 0,
   "events": [
     {
-      "seconds": 0.013653099999999994,
-      "label": "WebSocket connected",
-      "detail": "Connection 1: renewal before the 30s cap"
+      "seconds": 0.017330299999999993,
+      "label": "Initial HTTP cache read",
+      "detail": "0 trades; the dashboard starts empty"
     },
     {
-      "seconds": 0.0277851,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job not started"
+      "seconds": 0.025531599999999998,
+      "label": "POST -> 202 Accepted",
+      "detail": "job_id=44172320-cdc2-4873-b2d1-cf0b5cc12939; accepted in 8ms"
     },
     {
-      "seconds": 0.05152109999999999,
-      "label": "POST /api/pulls -> 202",
-      "detail": "Accepted in 24ms; work duration 900s"
-    },
-    {
-      "seconds": 0.05451579999999998,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
-    },
-    {
-      "seconds": 0.0705802,
-      "label": "Saved trades available",
-      "detail": "3,000 records remain readable during the full 15-minute pull"
-    },
-    {
-      "seconds": 0.07073689999999999,
+      "seconds": 0.027188999999999994,
       "label": "Synchronous GET started",
-      "detail": "/getTrades needs 900s; this connection has a 30s lifetime"
+      "detail": "15-minute response cannot survive a 30-second connection"
     },
     {
-      "seconds": 25.021912399999998,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 0.04126089999999999,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 1"
     },
     {
-      "seconds": 25.0451145,
-      "label": "WebSocket connected",
-      "detail": "Connection 2: renewal before the 30s cap"
+      "seconds": 0.0418947,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 25.0496015,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 0.04219839999999999,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 30.1015725,
+      "seconds": 25.0499199,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
+    },
+    {
+      "seconds": 25.054902900000002,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 2"
+    },
+    {
+      "seconds": 25.0556273,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
+    },
+    {
+      "seconds": 30.0367327,
       "label": "30s connection killed",
-      "detail": "Actual ECONNRESET; elapsed 30.03s; background pull continues"
+      "detail": "Actual ECONNRESET after 30.01s; job still processing"
     },
     {
-      "seconds": 30.106932699999998,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 30.0375391,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 50.0523076,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 50.0581743,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 50.0737402,
-      "label": "WebSocket connected",
-      "detail": "Connection 3: renewal before the 30s cap"
+      "seconds": 50.061953499999994,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 3"
     },
     {
-      "seconds": 50.0834623,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 50.0622665,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 75.0811385,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 75.0727402,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 75.1082874,
-      "label": "WebSocket connected",
-      "detail": "Connection 4: renewal before the 30s cap"
+      "seconds": 75.0774936,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 4"
     },
     {
-      "seconds": 75.1141625,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 75.0778091,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 100.1152746,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 100.08217909999999,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 100.1374701,
-      "label": "WebSocket connected",
-      "detail": "Connection 5: renewal before the 30s cap"
+      "seconds": 100.0863488,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 5"
     },
     {
-      "seconds": 100.14250849999999,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 100.0869232,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 125.1470484,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 125.0978836,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 125.163728,
-      "label": "WebSocket connected",
-      "detail": "Connection 6: renewal before the 30s cap"
+      "seconds": 125.1020489,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 6"
     },
     {
-      "seconds": 125.1682953,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 125.1023567,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 150.16763619999998,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 150.11631580000002,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 150.1916011,
-      "label": "WebSocket connected",
-      "detail": "Connection 7: renewal before the 30s cap"
+      "seconds": 150.11953960000002,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 7"
     },
     {
-      "seconds": 150.198466,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 150.1197384,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 175.20666919999996,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 175.12162030000002,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 175.2275797,
-      "label": "WebSocket connected",
-      "detail": "Connection 8: renewal before the 30s cap"
+      "seconds": 175.1245029,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 8"
     },
     {
-      "seconds": 175.232645,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 175.1248875,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 200.2335762,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 200.1319718,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 200.2497951,
-      "label": "WebSocket connected",
-      "detail": "Connection 9: renewal before the 30s cap"
+      "seconds": 200.1369804,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 9"
     },
     {
-      "seconds": 200.2551916,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 200.1372497,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 225.25713869999998,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 225.14806090000002,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 225.2785637,
-      "label": "WebSocket connected",
-      "detail": "Connection 10: renewal before the 30s cap"
+      "seconds": 225.1523122,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 10"
     },
     {
-      "seconds": 225.2840552,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 225.1526221,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 250.28281289999998,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 250.16796670000002,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 250.3033178,
-      "label": "WebSocket connected",
-      "detail": "Connection 11: renewal before the 30s cap"
+      "seconds": 250.1709815,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 11"
     },
     {
-      "seconds": 250.30778689999997,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 250.17122880000002,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 275.31382420000006,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 275.1740062,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 275.33329360000005,
-      "label": "WebSocket connected",
-      "detail": "Connection 12: renewal before the 30s cap"
+      "seconds": 275.1779026,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 12"
     },
     {
-      "seconds": 275.33779010000006,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 275.1781438,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 300.33550940000003,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 300.19000639999996,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 300.35465980000004,
-      "label": "WebSocket connected",
-      "detail": "Connection 13: renewal before the 30s cap"
+      "seconds": 300.1934887,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 13"
     },
     {
-      "seconds": 300.36849930000005,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 300.1939115,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 325.3562724,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 325.20911179999996,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 325.3764982,
-      "label": "WebSocket connected",
-      "detail": "Connection 14: renewal before the 30s cap"
+      "seconds": 325.2126864,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 14"
     },
     {
-      "seconds": 325.3808212,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 325.21299789999995,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 350.3889291,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 350.2221808,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 350.40984160000005,
-      "label": "WebSocket connected",
-      "detail": "Connection 15: renewal before the 30s cap"
+      "seconds": 350.2255784,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 15"
     },
     {
-      "seconds": 350.4380064,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 350.2258872,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 375.4154083,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 375.2341912,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 375.4314759,
-      "label": "WebSocket connected",
-      "detail": "Connection 16: renewal before the 30s cap"
+      "seconds": 375.2379201,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 16"
     },
     {
-      "seconds": 375.4494604,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 375.23822379999996,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 400.4449023,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 400.2396471,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 400.46368090000004,
-      "label": "WebSocket connected",
-      "detail": "Connection 17: renewal before the 30s cap"
+      "seconds": 400.2431731,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 17"
     },
     {
-      "seconds": 400.46904639999997,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 400.24342359999997,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 425.4721582,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 425.24778489999994,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 425.4927107,
-      "label": "WebSocket connected",
-      "detail": "Connection 18: renewal before the 30s cap"
+      "seconds": 425.251175,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 18"
     },
     {
-      "seconds": 425.5073110000001,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 425.2515022,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 450.50771900000007,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 450.26790669999997,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 450.5280043,
-      "label": "WebSocket connected",
-      "detail": "Connection 19: renewal before the 30s cap"
+      "seconds": 450.2708187,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 19"
     },
     {
-      "seconds": 450.5335869,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 450.27111699999995,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 475.5307461,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 475.2819654,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 475.54976790000006,
-      "label": "WebSocket connected",
-      "detail": "Connection 20: renewal before the 30s cap"
+      "seconds": 475.28547979999996,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 20"
     },
     {
-      "seconds": 475.5550099,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 475.2857634,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 500.56346420000006,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 500.2983804,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 500.5834648,
-      "label": "WebSocket connected",
-      "detail": "Connection 21: renewal before the 30s cap"
+      "seconds": 500.3004399,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 21"
     },
     {
-      "seconds": 500.5879123,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 500.3006562,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 525.5913237,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 525.302874,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 525.6093821,
-      "label": "WebSocket connected",
-      "detail": "Connection 22: renewal before the 30s cap"
+      "seconds": 525.3063075,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 22"
     },
     {
-      "seconds": 525.6147095,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 525.3065873,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 550.6254268,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 550.3091313,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 550.6439191,
-      "label": "WebSocket connected",
-      "detail": "Connection 23: renewal before the 30s cap"
+      "seconds": 550.3123811,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 23"
     },
     {
-      "seconds": 550.6490309,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 550.3126228,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 575.6501956,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 575.3226516,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 575.6703432999999,
-      "label": "WebSocket connected",
-      "detail": "Connection 24: renewal before the 30s cap"
+      "seconds": 575.3256338,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 24"
     },
     {
-      "seconds": 575.6753776,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 575.3258807,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 600.6740717999999,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 600.3343708,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 600.6879168,
-      "label": "WebSocket connected",
-      "detail": "Connection 25: renewal before the 30s cap"
+      "seconds": 600.3377412,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 25"
     },
     {
-      "seconds": 600.6905092,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 600.3380096,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 625.6949229999999,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 625.3552059,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 625.7120244,
-      "label": "WebSocket connected",
-      "detail": "Connection 26: renewal before the 30s cap"
+      "seconds": 625.3581675999999,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 26"
     },
     {
-      "seconds": 625.7157771,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 625.3584182,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 650.7263537,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 650.3704996,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 650.7458647999999,
-      "label": "WebSocket connected",
-      "detail": "Connection 27: renewal before the 30s cap"
+      "seconds": 650.3742258999999,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 27"
     },
     {
-      "seconds": 650.7586638,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 650.3745148,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 675.7520327999999,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 675.3853035999999,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 675.7690259,
-      "label": "WebSocket connected",
-      "detail": "Connection 28: renewal before the 30s cap"
+      "seconds": 675.3878464000001,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 28"
     },
     {
-      "seconds": 675.7729243,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 675.3881396999999,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 700.7748955999999,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 700.403376,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 700.7957246,
-      "label": "WebSocket connected",
-      "detail": "Connection 29: renewal before the 30s cap"
+      "seconds": 700.4062467,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 29"
     },
     {
-      "seconds": 700.8087095,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 700.4064998,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 725.8063629,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 725.4146319,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 725.8338061,
-      "label": "WebSocket connected",
-      "detail": "Connection 30: renewal before the 30s cap"
+      "seconds": 725.4175645,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 30"
     },
     {
-      "seconds": 725.8548371,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 725.4178104,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 750.8395572,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 750.4274566,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 750.8550167999999,
-      "label": "WebSocket connected",
-      "detail": "Connection 31: renewal before the 30s cap"
+      "seconds": 750.4310309,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 31"
     },
     {
-      "seconds": 750.8603452,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 750.4313012,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 775.8682248999999,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 775.4464062,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 775.8902729,
-      "label": "WebSocket connected",
-      "detail": "Connection 32: renewal before the 30s cap"
+      "seconds": 775.4496448,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 32"
     },
     {
-      "seconds": 775.8956627,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 775.4498844,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 800.8966621999999,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 800.4505407,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 800.9204587999999,
-      "label": "WebSocket connected",
-      "detail": "Connection 33: renewal before the 30s cap"
+      "seconds": 800.4541613,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 33"
     },
     {
-      "seconds": 800.944032,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 800.4544509,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 825.9301078,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 825.4598981999999,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 825.9531105,
-      "label": "WebSocket connected",
-      "detail": "Connection 34: renewal before the 30s cap"
+      "seconds": 825.4634878999999,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 34"
     },
     {
-      "seconds": 825.9587953,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 825.4638012,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 850.9651906,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 850.4730652,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 850.991765,
-      "label": "WebSocket connected",
-      "detail": "Connection 35: renewal before the 30s cap"
+      "seconds": 850.4764096,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 35"
     },
     {
-      "seconds": 850.9968543,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 850.476683,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 875.9934337,
-      "label": "WebSocket renewed",
-      "detail": "Code 4000; no data/status HTTP polling"
+      "seconds": 875.4924646,
+      "label": "Subscription renewed",
+      "detail": "Code 4000; same durable job, no HTTP polling"
     },
     {
-      "seconds": 876.0118445,
-      "label": "WebSocket connected",
-      "detail": "Connection 36: renewal before the 30s cap"
+      "seconds": 875.4962574,
+      "label": "Job WebSocket connected",
+      "detail": "Job 44172320; connection 36"
     },
     {
-      "seconds": 876.014833,
-      "label": "Snapshot pushed",
-      "detail": "3,000 saved trades; job running"
+      "seconds": 875.4967354,
+      "label": "Subscription state",
+      "detail": "Job running; notification metadata only"
     },
     {
-      "seconds": 900.2008972,
-      "label": "Snapshot pushed",
-      "detail": "5,000 saved trades; job completed"
+      "seconds": 900.1273189,
+      "label": "Subscription state",
+      "detail": "Job completed; notification metadata only"
     },
     {
-      "seconds": 900.2010726999999,
-      "label": "Full pull completed",
-      "detail": "900.17s elapsed; 2,000 trades committed and pushed"
+      "seconds": 900.1274959,
+      "label": "Completed notification",
+      "detail": "status=completed; download_url=/api/pulls/44172320-cdc2-4873-b2d1-cf0b5cc12939/trades"
+    },
+    {
+      "seconds": 900.1581381,
+      "label": "HTTP report downloaded",
+      "detail": "2,000 trades in 31ms; dashboard can render now"
     }
   ]
 }
